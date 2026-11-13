@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#fafbfe">
+  <meta name="description" content="A private, visual PDF studio. Edit text, add shapes with independent fill and outline colors, sign, annotate and export — all in your browser.">
+  <title>PDF Studio — PDF editing, reimagined</title>
+  <link rel="stylesheet" href="/css//base.css">
+  <link rel="stylesheet" href="/css/landing.css">
+  <link rel="stylesheet" href="/css/theme.css">
+  <link rel="stylesheet" href="/css/responsive.css">
+</head>
+<body>
+  <header id="editorHeader" class="editor-header">
+    <div class="editor-identity">
+      <button class="logo-icon" id="backHome" title="Return to landing page" aria-label="Home">✦</button>
+      <div>
+  <strong class="product-name">PDF Studio</strong><span class="app-caption">Document workspace</span>
+</div>
+      <div class="header-divider"></div>
+      <div class="file-pill">
+<span class="file-dot"></span><span id="fileName">document.pdf</span>
+</div>
+    </div>
+    <div class="header-actions">
+      <button id="commandOpen" class="command-open" type="button" title="Command menu (⌘ / Ctrl + K)"><span class="command-search">⌕</span><span>Quick actions</span><kbd>⌘ K</kbd></button>
+      <button id="open" class="button-icon open-action" title="Open a PDF">↥ <span>Open PDF</span></button>
+      <button id="mg" class="button-icon optional-label" title="Merge another PDF">⊞ <span>Merge</span></button>
+      <span class="header-divider small-hide"></span>
+      <button id="undo" class="icon-btn" aria-label="Undo" title="Undo (Ctrl / Cmd + Z)">↶</button>
+      <button id="redo" class="icon-btn" aria-label="Redo" title="Redo (Ctrl / Cmd + Shift + Z)">↷</button>
+      <div class="search-group">
+<input id="q" type="search" placeholder="Find in PDF" aria-label="Search PDF text"><button id="qn" aria-label="Next search result" title="Next result">⌕</button>
+</div>
+      <button id="toggleInspector" class="icon-btn editor-panel-toggle" type="button" title="Show / hide properties" aria-label="Toggle properties panel" aria-pressed="true">◫</button>
+      <button id="save" class="pri export-btn"><span>↓</span> Export PDF</button>
+    </div>
+    <button id="mobilePropertiesBtn" class="mobile-properties-button" type="button" title="Toggle properties" aria-label="Toggle properties">⚙</button>
+  </header>
+
+  <div class="studio-layout">
+    <aside id="dock" class="tool-rail" aria-label="PDF editing tools">
+      <div class="rail-title">EDIT TOOLS</div>
+      <button class="tl" data-t="select" title="Select, move and resize"><span class="tool-glyph">⌖</span><span>Select</span></button>
+      <button class="tl" data-t="etext" title="Edit existing PDF text"><span class="tool-glyph">Aa</span><span>Edit text</span></button>
+      <button class="tl" data-t="text" title="Add editable text"><span class="tool-glyph">T</span><span>Add text</span></button>
+      <button class="tl" data-t="shp" title="Draw customizable shapes"><span class="tool-glyph">◇</span><span>Shapes</span></button>
+      <button class="tl" data-t="pen" title="Freehand drawing"><span class="tool-glyph">〰</span><span>Draw</span></button>
+      <button class="tl" data-t="hl" title="Highlight text or areas"><span class="tool-glyph">▰</span><span>Highlight</span></button>
+      <button class="tl" data-t="box" title="Draw an outline box"><span class="tool-glyph">□</span><span>Outline</span></button>
+      <div class="rail-separator"></div>
+      <div class="rail-title">INSERT</div>
+      <button class="tl" data-t="img" title="Insert an image"><span class="tool-glyph">▧</span><span>Image</span></button>
+      <button class="tl" data-t="sig" title="Create your signature"><span class="tool-glyph">✍</span><span>Sign</span></button>
+      <button class="tl" data-t="form" title="Fill PDF form fields"><span class="tool-glyph">☑</span><span>Forms</span></button>
+      <button class="tl" data-t="red" title="Permanently redact areas on export"><span class="tool-glyph">▣</span><span>Redact</span></button>
+      <button class="tl" data-t="erase" title="Remove annotations"><span class="tool-glyph">⌫</span><span>Erase</span></button>
+      <div class="rail-spacer"></div>
+      <div class="rail-bottom-note" title="Documents are processed locally in your browser">◈<span>Private by default</span>
+</div>
+    </aside>
+
+    <main id="view" aria-label="PDF canvas and landing page">
+      <div class="canvas-toolbar" id="canvasToolbar" aria-label="Canvas controls">
+        <div class="canvas-toolbar-title">
+<span class="canvas-signal"></span><span>Canvas</span>
+</div>
+        <span class="toolbar-rule"></span>
+        <button type="button" id="canvasPages" title="View page thumbnails">▤ <span>Pages</span></button>
+        <button type="button" id="canvasFit" title="Fit entire page">⊞ <span>Fit page</span></button>
+        <button type="button" id="canvasGrid" title="Toggle alignment grid" aria-pressed="false">▦ <span>Grid</span></button>
+        <button type="button" id="canvasHelp" title="Keyboard shortcuts">? <span>Shortcuts</span></button>
+      </div>
+      <div id="empty">
+        <div class="land">
+          <nav class="landing-nav page-wrap">
+            <a href="#top" class="landing-brand" aria-label="PDF Studio home"><span class="brand-mark">✦</span><span>PDF<span class="brand-soft">Studio</span></span></a>
+            <div class="nav-links">
+<a href="#tools">All tools</a><a href="#features">Why PDF Studio</a><a href="#how-it-works">How it works</a>
+</div>
+            <button class="nav-button" id="navOpen">Launch editor <span>↗</span></button>
+          </nav>
+          <section class="hero page-wrap" id="top">
+            <div class="hero-copy">
+              <div class="eyebrow">
+<span class="live-dot"></span> YOUR ALL-IN-ONE PDF WORKSPACE <span class="eyebrow-arrow">✳</span>
+</div>
+              <h1>Every PDF,<br><span class="hero-hilite">your canvas.</span>
+</h1>
+              <p class="hero-description">Edit, annotate, design and sign without the complicated tools. A focused, beautiful workspace to make every document work for you.</p>
+              <div class="hero-cta">
+<button id="open2" class="pri hero-btn">↥   Edit a PDF <span>↗</span></button><button id="tryDemo" class="secondary hero-btn">▶   Explore live demo</button>
+</div>
+              <div class="trust">
+<span class="trust-icon">✓</span> No signup <span class="trust-sep">·</span><span class="trust-icon">✓</span> Instant editing <span class="trust-sep">·</span><span class="trust-icon">✓</span> Files stay in your browser</div>
+              <div id="drop" class="upload-strip">
+<span class="upload-symbol">↥</span><span><b>Drop your PDF to start editing</b><small>Drag &amp; drop · PDF files only</small></span><span class="upload-cta">Browse file →</span><button id="rs" hidden>↻ Restore previous session</button>
+</div>
+            </div>
+            <div class="hero-visual">
+              <div class="floating-chip chip-one">
+<span>✦</span> Make it your own</div>
+              <div class="floating-chip chip-two">
+<span class="green-tick">✓</span> Changes saved locally</div>
+              <div class="mock-editor">
+                <div class="mock-header">
+<span class="mock-dots"><i></i><i></i><i></i></span><span class="mock-doc">◧   design-review.pdf</span><span class="mock-export">↧ Export</span>
+</div>
+                <div class="mock-body">
+<div class="mock-sidebar">
+<span class="active">⌖</span><span>Aa</span><span>T</span><span>◇</span><span>✎</span><span>▧</span>
+</div>
+                <div class="mock-artboard"><div class="mock-paper">
+<span class="mock-overline">YOUR NEXT BIG IDEA</span><h3>Ideas look better<br>when they come alive.</h3>
+<div class="mock-line w80"></div>
+<div class="mock-line w96"></div>
+<div class="mock-line w55"></div>
+<div class="mock-shape-wrap">
+<div class="mock-shape" id="demoShape"><span>Build something<br>brilliant ✦</span></div>
+<div class="resize-handle">↘</div>
+</div>
+<div class="mock-bottom">
+<span>Made to be edited.</span><span>01 / 02</span>
+</div>
+</div></div>
+                <div class="mock-inspector">
+<span class="mock-panel-title">Shape properties</span><small>Appearance</small><label>Fill color</label><div class="mock-color-select">
+<span id="demoFillChip"></span><span id="demoFillText">#DDD7FF</span>
+</div>
+<label>Outline color</label><div class="mock-color-select">
+<span id="demoOutlineChip"></span><span id="demoOutlineText">#6555E8</span>
+</div>
+<label>Outline width</label><div class="mock-meter"><i></i></div>
+<small class="mock-bottom-tag">✦ Live editing</small>
+</div>
+</div>
+                <div class="mock-footer">100% <span>◌   Click a color below to preview</span> ◈</div>
+              </div>
+              <div class="demo-palette" aria-label="Interactive example shape styles">
+<span>Try a style</span><button data-demo-style="violet" class="demo-dot active" title="Lavender" style="--dot:#8c7af4"></button><button data-demo-style="coral" class="demo-dot" title="Coral" style="--dot:#fa877f"></button><button data-demo-style="mint" class="demo-dot" title="Mint" style="--dot:#36bb9b"></button><button data-demo-style="gold" class="demo-dot" title="Golden" style="--dot:#edb24d"></button>
+</div>
+            </div>
+          </section>
+          <div class="capability-ticker"><div class="page-wrap">
+<span>ONE SPACE. EVERY TOOL.</span><b>EDIT TEXT</b><span>✳</span><b>DRAW &amp; DESIGN</b><span>✳</span><b>SIGN</b><span>✳</span><b>ORGANIZE</b><span>✳</span><b>EXPORT</b>
+</div></div>
+          <section class="landing-section page-wrap" id="tools"><div class="section-heading">
+<div>
+<div class="section-kicker">EXPLORE YOUR TOOLKIT</div>
+<h2>Everything you need.<br><span>Nothing you don't.</span>
+</h2>
+</div>
+<p>All tools live inside one editor. Pick a tool, open your PDF, and start creating — no hunting through different pages.</p>
+</div>
+            <div class="tool-discovery">
+              <div class="tool-filter-tabs" role="group" aria-label="Filter available PDF tools">
+                <button class="tool-filter active" type="button" data-filter="all" aria-pressed="true">All tools <span>09</span></button>
+                <button class="tool-filter" type="button" data-filter="edit" aria-pressed="false">Edit &amp; design</button>
+                <button class="tool-filter" type="button" data-filter="markup" aria-pressed="false">Annotate</button>
+                <button class="tool-filter" type="button" data-filter="document" aria-pressed="false">Documents</button>
+              </div>
+              <label class="tool-search-wrap" for="toolSearch"><span>⌕</span><input id="toolSearch" type="search" placeholder="Search tools…" autocomplete="off" aria-label="Search PDF tools"><kbd>/</kbd></label>
+            </div>
+            <div id="toolEmpty" class="tool-empty" hidden>No matching tools. Try another search.</div>
+            <div class="tools-grid">
+              <button data-category="edit" class="tool-card card-primary" data-start-t="etext"><span class="tool-card-icon">Aa</span><span class="card-tag">MOST POPULAR</span><b>Edit existing text</b><span>Replace text with reconstructed styling; results depend on the source PDF.</span><em>Use tool ↗</em></button>
+              <button data-category="edit" class="tool-card" data-start-t="shp"><span class="tool-card-icon">◇</span><b>Shapes &amp; design</b><span>Add rectangles, circles, arrows and more with custom outline, fill, width and opacity.</span><em>Use tool ↗</em></button>
+              <button data-category="edit" class="tool-card" data-start-t="text"><span class="tool-card-icon">T</span><b>Add text</b><span>Place text anywhere. Adjust size, fonts, boldness and colors.</span><em>Use tool ↗</em></button>
+              <button data-category="markup" class="tool-card" data-start-t="sig"><span class="tool-card-icon">✍</span><b>Sign documents</b><span>Draw a handwritten signature and position it precisely.</span><em>Use tool ↗</em></button>
+              <button data-category="markup" class="tool-card" data-start-t="pen"><span class="tool-card-icon">〰</span><b>Draw &amp; annotate</b><span>Freehand pen, highlight markers and outline boxes for quick notes.</span><em>Use tool ↗</em></button>
+              <button data-category="edit" class="tool-card" data-start-t="img"><span class="tool-card-icon">▧</span><b>Add images</b><span>Insert logos, stamps, photographs or graphics and resize them.</span><em>Use tool ↗</em></button>
+              <button data-category="document" class="tool-card" data-start-t="form"><span class="tool-card-icon">☑</span><b>Fill forms</b><span>Complete text and checkbox form fields without printing.</span><em>Use tool ↗</em></button>
+              <button data-category="document" class="tool-card" data-start-t="red"><span class="tool-card-icon">▣</span><b>Redact content</b><span>Mark areas for removal and flatten the exported pages.</span><em>Use tool ↗</em></button>
+              <button data-category="document" class="tool-card" data-start-action="pages"><span class="tool-card-icon">▤</span><b>Manage pages</b><span>Preview, delete, rearrange and merge PDF pages in one place.</span><em>Use tool ↗</em></button>
+            </div>
+          </section>
+          <section class="feature-feature page-wrap" id="features"><div class="feature-copy">
+<div class="section-kicker">PRECISION BY DESIGN</div>
+<h2>Shapes that work<br>the way <i>you</i> do.</h2>
+<p>A real shape editor, not just a drawing tool. Set fill and outline separately, fine-tune stroke width, change opacity, resize and reposition directly on the page.</p>
+<div class="feature-chips">
+<span>◉ Fill colors</span><span>◇ Outline colors</span><span>≋ Stroke styles</span><span>◷ Opacity control</span><span>⇲ Resize handles</span><span>↕ Layer order</span>
+</div>
+<button class="pri feature-button" data-start-t="shp">Explore shape tools ↗</button>
+</div>
+          <div class="feature-showcase">
+<div class="shape-swatch-title">Shape playground <span>DESIGN SYSTEM / 01</span>
+</div>
+<div class="shape-samples">
+<div class="sample-shape sample-rect">CREATE</div>
+<div class="sample-shape sample-circle">PLAY</div>
+<div class="sample-shape sample-pill">MAKE IT YOURS</div>
+</div>
+<div class="feature-control-cards">
+<div>
+<small>FILL</small><span class="purple-swatch"></span><b>#DDD7FF</b>
+</div>
+<div>
+<small>OUTLINE</small><span class="violet-swatch"></span><b>#6555E8</b>
+</div>
+<div>
+<small>STROKE</small><b>3 px</b>
+</div>
+</div>
+</div></section>
+          <section class="landing-section workflow-section page-wrap" id="how-it-works"><div class="section-heading">
+<div>
+<div class="section-kicker">THREE SIMPLE STEPS</div>
+<h2>From PDF to<br><span>possibilities.</span>
+</h2>
+</div>
+<p>A complete editing workflow, without the learning curve.</p>
+</div>
+<div class="step-grid">
+<div class="step">
+<div class="step-number">01 <span>↥</span>
+</div>
+<h3>Open your PDF</h3>
+<p>Choose a file or drag it into the editor. You don't need an account or an upload to a server.</p>
+</div>
+<div class="step">
+<div class="step-number">02 <span>✎</span>
+</div>
+<h3>Make it yours</h3>
+<p>Edit text, add shapes, draw, sign, fill forms, and arrange pages with live visual controls.</p>
+</div>
+<div class="step">
+<div class="step-number">03 <span>↧</span>
+</div>
+<h3>Export your work</h3>
+<p>Download your updated PDF. Need a break? Your current session can be restored locally.</p>
+</div>
+</div></section>
+          <section class="landing-cta page-wrap"><div>
+<span class="section-kicker">YOUR DOCUMENTS, YOUR RULES</span><h2>Ready to make<br>something better?</h2>
+<p>A complete PDF workspace is one click away.</p>
+</div>
+<div class="cta-group">
+<button id="ctaOpen" class="cta-white">Open a PDF <span>↗</span></button><button id="ctaDemo" class="cta-outline">Try a sample document <span>→</span></button>
+</div></section>
+          <footer class="landing-footer page-wrap"><a href="#top" class="landing-brand"><span class="brand-mark">✦</span><span>PDF<span class="brand-soft">Studio</span></span></a><p>Made for the moments when a document needs more.</p>
+<div class="footer-credit">
+<span>Made by <a class="github-credit" href="https://github.com/search?q=Ajanur%20Rahman&amp;type=users" target="_blank" rel="noopener noreferrer" title="Visit GitHub">Ajanur Rahman <span aria-hidden="true">↗</span></a></span><button class="github-configure" type="button" title="Set the correct GitHub profile URL">Configure GitHub link</button>
+</div></footer>
+        </div>
+      </div>
+      <div id="pages" aria-label="PDF pages"></div>
+    </main>
+
+    <aside id="inspector" class="inspector" aria-label="Editing properties">
+      <div class="inspector-head">
+<div>
+<span class="panel-kicker">DESIGN CONTROLS</span><h2>Properties</h2>
+</div>
+<button id="inspectorClose" class="inspector-close" type="button" title="Close properties panel">×</button>
+</div>
+      <div class="inspector-active">
+<span class="inspector-active-dot"></span><span id="inspectorContext">Choose a tool or select an element</span>
+</div>
+      <div class="inspector-scroll">
+        <section class="inspector-section" id="shapeTools">
+          <div class="inspector-label-row">
+<h3>Shape presets</h3>
+<span>9 SHAPES</span>
+</div>
+          <div class="shape-grid" id="shapePresets">
+            <button type="button" class="shape-choice active" data-shape="rect" title="Rectangle">▭</button>
+            <button type="button" class="shape-choice" data-shape="round" title="Rounded rectangle">▢</button>
+            <button type="button" class="shape-choice" data-shape="ell" title="Ellipse">◯</button>
+            <button type="button" class="shape-choice" data-shape="tri" title="Triangle">△</button>
+            <button type="button" class="shape-choice" data-shape="diamond" title="Diamond">◇</button>
+            <button type="button" class="shape-choice" data-shape="star" title="Star">☆</button>
+            <button type="button" class="shape-choice" data-shape="check" title="Check">✓</button>
+            <button type="button" class="shape-choice" data-shape="cross" title="Cross">✕</button>
+            <button type="button" class="shape-choice" data-shape="arrow" title="Arrow">➜</button>
+          </div>
+          <select id="sk" aria-label="Selected shape" hidden><option value="rect">Rectangle</option>
+<option value="round">Rounded</option>
+<option value="ell">Ellipse</option>
+<option value="tri">Triangle</option>
+<option value="diamond">Diamond</option>
+<option value="star">Star</option>
+<option value="check">Check</option>
+<option value="cross">Cross</option>
+<option value="arrow">Arrow</option></select>
+        </section>
+        <div id="fb" class="format-area">
+          <section class="inspector-section">
+            <div class="inspector-label-row">
+<h3>Appearance</h3>
+<span id="appearanceMode">SHAPE</span>
+</div>
+            <div class="color-field">
+<div>
+<label for="fc">Fill color</label><small>Inside the shape</small>
+</div>
+<div class="color-input-wrap">
+<input type="color" id="fc" value="#ddd7ff" aria-label="Shape fill color"><span id="fillHex">#DDD7FF</span>
+</div>
+</div>
+            <div class="toggle-line">
+<label class="toggle-wrap"><input id="fillEnabled" type="checkbox" checked><span class="toggle-ui"></span>Enable fill</label><button id="fx" class="link-control" type="button">No fill</button>
+</div>
+            <div class="color-field">
+<div>
+<label for="oc">Outline color</label><small>Border around the shape</small>
+</div>
+<div class="color-input-wrap">
+<input type="color" id="oc" value="#6555e8" aria-label="Shape outline color"><span id="outlineHex">#6555E8</span>
+</div>
+</div>
+            <div class="toggle-line">
+<label class="toggle-wrap"><input id="outlineEnabled" type="checkbox" checked><span class="toggle-ui"></span>Enable outline</label><button id="ox" class="link-control" type="button">No outline</button>
+</div>
+            <div class="inspector-colors-heading">QUICK COLOR PALETTES</div>
+            <div id="shapePalettes" class="shape-palettes" role="group" aria-label="Apply fill and outline palettes">
+              <button type="button" class="shape-palette" data-colors="#DDD7FF,#6555E8" title="Lavender" style="--pfill:#DDD7FF;--pstroke:#6555E8"></button>
+              <button type="button" class="shape-palette" data-colors="#D6F5E9,#18A47D" title="Mint" style="--pfill:#D6F5E9;--pstroke:#18A47D"></button>
+              <button type="button" class="shape-palette" data-colors="#FFE1D9,#ED7966" title="Coral" style="--pfill:#FFE1D9;--pstroke:#ED7966"></button>
+              <button type="button" class="shape-palette" data-colors="#FFF0C4,#D99A38" title="Amber" style="--pfill:#FFF0C4;--pstroke:#D99A38"></button>
+              <button type="button" class="shape-palette" data-colors="#E9EFFD,#4777D8" title="Sky" style="--pfill:#E9EFFD;--pstroke:#4777D8"></button>
+              <button type="button" class="shape-palette" data-colors="#F1F2F6,#52596A" title="Slate" style="--pfill:#F1F2F6;--pstroke:#52596A"></button>
+            </div>
+            <div class="range-heading">
+<label for="ow">Outline width</label><output id="owValue">3 px</output>
+</div>
+<input id="ow" class="styled-range" type="range" min="0.5" max="20" step="0.5" value="3">
+            <div class="range-heading">
+<label for="fo">Fill opacity</label><output id="foValue">100%</output>
+</div>
+<input id="fo" class="styled-range" type="range" min="0" max="100" step="5" value="100">
+            <label class="field-label" for="os">Outline style</label><select id="os" class="field-select"><option value="solid">Solid line</option>
+<option value="dashed">Dashed line</option>
+<option value="dotted">Dotted line</option></select>
+            <div class="live-appearance">
+<span>LIVE PREVIEW</span><div class="live-preview-box"><svg viewbox="0 0 230 80" aria-hidden="true"><rect id="livePreviewShape" x="48" y="12" width="134" height="56" rx="12" fill="#ddd7ff" stroke="#6555e8" stroke-width="3"></rect></svg></div>
+</div>
+          </section>
+          <section class="inspector-section typography-section"><h3>Typography &amp; layers</h3>
+            <div class="color-field">
+<div><label for="tc">Text color</label></div>
+<div class="color-input-wrap">
+<input type="color" id="tc" value="#111111"><span>Text</span>
+</div>
+</div>
+            <label class="field-label" for="ff">Font family</label><select id="ff" class="field-select"><option value="h">Sans serif</option>
+<option value="t">Serif</option>
+<option value="c">Monospace</option></select>
+            <div class="type-actions">
+<button id="fbb" title="Bold"><b>B</b></button><button id="fbi" title="Italic"><i>I</i></button><button id="fm" title="Decrease font size">A−</button><button id="fp" title="Increase font size">A+</button>
+</div>
+            <div class="layer-actions">
+<button id="dup">⊞ Duplicate</button><button id="fr">↑ Front</button><button id="bk">↓ Back</button>
+</div>
+<button id="lf" class="subtle-block">＋ Import custom font</button>
+          </section>
+        </div>
+        <section class="inspector-section generic-appearance" id="genericAppearance"><h3>Drawing style</h3>
+<p>Choose an ink color and stroke size. Shapes have separate fill and outline controls.</p>
+          <div class="preset-colors" id="sw"></div>
+          <div class="color-field">
+<div><label for="cc">Custom color</label></div>
+<div class="color-input-wrap">
+<input type="color" id="cc" value="#e53935"><span>Ink</span>
+</div>
+</div>
+          <div class="range-heading">
+<label for="sz">Stroke size</label><output id="szValue">2 px</output>
+</div>
+<input class="styled-range" type="range" id="sz" min="1" max="12" value="2">
+        </section>
+        <section class="inspector-section" id="documentTools"><h3>Document tools</h3>
+<p>Rearrange pages, copy elements, or manage your document.</p>
+          <button id="pgs" class="document-action">▤ <span>Pages &amp; order</span> →</button>
+          <button id="del" class="document-action">⌫ <span>Delete selected element</span> →</button>
+          <button id="dp" class="document-action danger-action">⊗ <span>Delete current page</span> →</button>
+        </section>
+        <div class="inspector-privacy">◈ <span><b>Private workspace</b><small>PDFs are processed in this browser, not uploaded to our server.</small></span>
+</div>
+      </div>
+    </aside>
+  </div>
+  <div id="bottomBar" class="editor-status">
+<span class="status-ready"><span class="live-dot"></span> Ready to edit</span><span id="toolHint">Select an element on the page to start.</span><span class="status-spacer"></span><span class="status-author">Made by <a class="github-credit" href="https://github.com/search?q=Ajanur%20Rahman&amp;type=users" target="_blank" rel="noopener noreferrer" title="GitHub profile link">Ajanur Rahman <span aria-hidden="true">↗</span></a></span><span class="status-pages">Page <span id="pn">—</span></span><span class="status-divider"></span><button id="zo" title="Zoom out" aria-label="Zoom out">−</button><span id="zl">100%</span><button id="zi" title="Zoom in" aria-label="Zoom in">+</button>
+</div>
+
+  <textarea id="ti" rows="1" wrap="off" spellcheck="false" aria-label="Edit text on PDF page"></textarea>
+  <aside id="th" hidden aria-label="Page thumbnails"></aside>
+  <div id="sg" hidden><div class="mod">
+<div class="modal-header">
+<span class="section-kicker">PERSONAL TOUCH</span><h2>Draw your signature</h2>
+<p>Use your mouse, trackpad, or touch screen.</p>
+</div>
+<canvas id="sc" width="560" height="220"></canvas><div class="modal-actions">
+<button id="sx">Clear</button><span class="sp"></span><button id="sigCancel">Cancel</button><button id="su" class="pri">Add to page ↗</button>
+</div>
+</div></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div class="overlay" id="commandPalette" hidden>
+    <div class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="commandTitle">
+      <div class="command-input-shell">
+<span class="command-input-icon">⌕</span><input id="commandInput" type="search" autocomplete="off" placeholder="What do you want to do?" aria-label="Search editor actions"><kbd>ESC</kbd>
+</div>
+      <div class="command-overline" id="commandTitle">QUICK ACTIONS · PDF STUDIO</div>
+      <div id="commandResults" class="command-results"></div>
+      <div class="command-bottom">
+<span>↑ ↓ Navigate   ↵ Select</span><span>⌘ K to reopen</span>
+</div>
+    </div>
+  </div>
+  <div class="overlay" id="shortcutHelp" hidden>
+    <div class="shortcuts-dialog" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
+      <div class="shortcuts-header">
+<div>
+<span class="section-kicker">GET AROUND FASTER</span><h2 id="shortcutsTitle">Keyboard shortcuts</h2>
+</div>
+<button type="button" id="shortcutsClose" class="dialog-close" aria-label="Close shortcuts">×</button>
+</div>
+      <div class="shortcut-row">
+<span>Select tool</span><kbd>V</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Edit existing text</span><kbd>E</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Add text</span><kbd>T</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Draw a shape</span><kbd>R</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Pen / Draw</span><kbd>P</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Highlight</span><kbd>H</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Quick actions</span><kbd>⌘ / Ctrl + K</kbd>
+</div>
+      <div class="shortcut-row">
+<span>Undo / Redo</span><kbd>⌘ / Ctrl + Z / Shift + Z</kbd>
+</div>
+      <p>Shortcuts work when you're not typing in a text field.</p>
+    </div>
+  </div>
+  <div class="overlay" id="githubDialog" hidden>
+    <form id="githubForm" novalidate class="github-dialog" role="dialog" aria-modal="true" aria-labelledby="githubTitle">
+      <div class="shortcuts-header">
+<div>
+<span class="section-kicker">AUTHOR CREDIT</span><h2 id="githubTitle">Connect your GitHub</h2>
+</div>
+<button type="button" id="githubClose" class="dialog-close" aria-label="Close">×</button>
+</div>
+      <p>Set Ajanur Rahman's exact GitHub profile URL. The footer link will open the profile and this browser will remember it.</p>
+      <label for="githubUrl">GitHub profile URL</label>
+      <input id="githubUrl" type="url" placeholder="https://github.com/your-username" autocomplete="url" required>
+      <div id="githubError" class="github-error" role="alert" hidden>Please enter a valid GitHub profile URL.</div>
+      <div class="modal-actions">
+<button type="button" id="githubCancel" class="secondary">Cancel</button><button type="submit" class="pri">Save GitHub link ↗</button>
+</div>
+    </form>
+  </div>
+  <input type="file" id="f" accept="application/pdf,.pdf" hidden>
+  <input type="file" id="fi" accept="image/*" hidden>
+  <input type="file" id="mf" accept="application/pdf,.pdf" hidden>
+  <input type="file" id="ft" accept=".ttf,.otf" hidden>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+  <script src="js/core/bootstrap.js"></script>
+<script src="js/core/state.js"></script>
+<script src="js/core/document.js"></script>
+<script src="js/editor/annotations.js"></script>
+<script src="js/editor/tools.js"></script>
+<script src="js/editor/pointer.js"></script>
+<script src="js/editor/pages.js"></script>
+<script src="js/editor/inspector-base.js"></script>
+<script src="js/editor/edit-existing-text.js"></script>
+<script src="js/editor/text.js"></script>
+<script src="js/editor/images.js"></script>
+<script src="js/services/export-pdf.js"></script>
+<script src="js/ui/events.js"></script>
+<script src="js/ui/appearance.js"></script>
+<script src="js/ui/landing.js"></script>
+<script src="js/ui/workspace.js"></script>
+</body>
+</html>

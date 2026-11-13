@@ -1,0 +1,198 @@
+@media(max-width:1330px) {
+  .command-open {
+    min-width: 40px;
+  }
+  .command-open>span:nth-child(2),.command-open kbd {
+    display: none;
+  }
+  .command-open {
+    padding: 0 11px;
+  }
+  .landing-nav {
+    padding-left: 29px;
+    padding-right: 29px;
+  }
+}
+@media(max-width:1050px) {
+  .inspector {
+    width: 270px;
+  }
+  .tool-rail {
+    width: 70px;
+  }
+  .tl {
+    width: 60px;
+  }
+  .tool-search-wrap {
+    min-width: 190px;
+  }
+  .tool-filter {
+    padding: 9px;
+  }
+  .tool-filter-tabs {
+    gap: 0;
+  }
+  #th {
+    left: 70px;
+  }
+  .canvas-toolbar-title {
+    display: none;
+  }
+}
+@media(max-width:760px) {
+  .page-wrap {
+    padding-left: 26px;
+    padding-right: 26px;
+  }
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-top: 42px;
+  }
+  .hero h1 {
+    font-size: clamp(43px,8vw,60px);
+    letter-spacing: -3.4px;
+  }
+  .hero-visual {
+    max-width: 590px;
+  }
+  .tool-discovery {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tool-filter-tabs {
+    width: max-content;
+    max-width: 100%;
+  }
+  .tool-search-wrap {
+    max-width: none;
+    min-width: 0;
+    width: 100%;
+    flex: unset;
+  }
+  .landing-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .landing-footer p {
+    margin: 0;
+  }
+  .footer-credit {
+    align-items: center;
+  }
+  .tool-rail {
+    width: 64px;
+  }
+  .tl {
+    width: 55px;
+  }
+  .inspector {
+    width: 225px;
+  }
+  #th {
+    left: 64px;
+  }
+  .command-open {
+    display: none;
+  }
+  .editor-panel-toggle {
+    display: none;
+  }
+}
+@media(max-width:590px) {
+  .page-wrap {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .landing-nav {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .nav-button {
+    padding: 10px;
+  }
+  .hero h1 {
+    font-size: 43px;
+    line-height: 1.13;
+    letter-spacing: -2.7px;
+  }
+  .hero-description {
+    font-size: 12px;
+  }
+  .hero-visual {
+    padding-top: 13px;
+  }
+  .tool-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    width: 100%;
+  }
+  .tool-filter {
+    padding: 10px 6px;
+    font-size: 10px;
+  }
+  .tool-card {
+    min-height: 172px;
+  }
+  .landing-section {
+    padding-top: 69px;
+    padding-bottom: 65px;
+  }
+  .landing-footer {
+    margin-top: 45px;
+  }
+  .editor-status {
+    padding: 0 9px;
+  }
+  .status-author {
+    display: none;
+  }
+  .canvas-toolbar {
+    top: 8px;
+    height: 38px;
+    max-width: calc(100% - 16px);
+    margin-bottom: -32px;
+    gap: 0;
+  }
+  .canvas-toolbar button {
+    padding: 0 7px;
+    font-size: 13px;
+  }
+  .canvas-toolbar button span {
+    display: none;
+  }
+  .tool-rail {
+    width: 65px;
+  }
+  .tool-rail .tl {
+    min-height: 55px;
+  }
+  .inspector {
+    width: min(315px,calc(100vw - 65px));
+    top: 64px;
+  }
+  .overlay {
+    padding-top: 80px;
+  }
+  .shortcuts-dialog,.github-dialog {
+    padding: 22px;
+  }
+  .command-dialog {
+    width: 100%;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  *,*:before,*:after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+/* Keep document page fully visible below the sticky canvas controller. */
+.canvas-toolbar {
+  margin-bottom: 12px;
+}
+#pages {
+  padding-top: 24px;
+}
