@@ -1,4 +1,4 @@
-"""Serve PDF Studio from the project directory, independent of the shell location."""
+"""Serve Paprify from the project directory, independent of the shell location."""
 
 import argparse
 from functools import partial
@@ -19,7 +19,7 @@ REQUIRED_ASSETS = (
 
 
 class DevelopmentHandler(SimpleHTTPRequestHandler):
-    """Serve files from PDF Studio with development-friendly cache settings."""
+    """Serve files from Paprify with development-friendly cache settings."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(PROJECT_ROOT), **kwargs)
@@ -36,11 +36,11 @@ def verify_project_files():
     ]
     if missing_files:
         details = ", ".join(missing_files)
-        raise FileNotFoundError(f"Incomplete PDF Studio folder: {details}")
+        raise FileNotFoundError(f"Incomplete Paprify folder: {details}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run PDF Studio locally")
+    parser = argparse.ArgumentParser(description="Run Paprify locally")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
 
@@ -48,7 +48,7 @@ def main():
 
     try:
         with ThreadingHTTPServer(("127.0.0.1", args.port), DevelopmentHandler) as server:
-            print(f"PDF Studio is running at http://localhost:{args.port}/")
+            print(f"Paprify is running at http://localhost:{args.port}/")
             print(f"Serving files from: {PROJECT_ROOT}")
             print("Press Ctrl+C to stop.")
             try:

@@ -4,19 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#fafbfe">
-  <meta name="description" content="A private, visual PDF studio. Edit text, add shapes with independent fill and outline colors, sign, annotate and export — all in your browser.">
-  <title>PDF Studio — PDF editing, reimagined</title>
-  <link rel="stylesheet" href="/css//base.css">
-  <link rel="stylesheet" href="/css/landing.css">
-  <link rel="stylesheet" href="/css/theme.css">
-  <link rel="stylesheet" href="/css/responsive.css">
+  <meta name="description" content="Paprify is a private, visual PDF editor. Edit text, add shapes with independent fill and outline colors, sign, annotate and export — all in your browser.">
+  <title>Paprify — PDF editing, reimagined</title>
+  <link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/landing.css">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/responsive.css">
+  <link rel="stylesheet" href="css/paprify-brand.css">
 </head>
 <body>
   <header id="editorHeader" class="editor-header">
     <div class="editor-identity">
-      <button class="logo-icon" id="backHome" title="Return to landing page" aria-label="Home">✦</button>
+      <button class="logo-icon paprify-editor-icon" id="backHome" type="button" title="Return to landing page" aria-label="Home">
+        <span class="paprify-brand paprify-brand--icon" aria-hidden="true">
+              <img class="paprify-brand__light" src="assets/branding/paprify-horizontal-no-tagline.png" alt="">
+              <img class="paprify-brand__dark" src="assets/branding/paprify-horizontal-dark.png" alt="">
+            </span>
+      </button>
       <div>
-  <strong class="product-name">PDF Studio</strong><span class="app-caption">Document workspace</span>
+<strong class="product-name">Paprify</strong><span class="app-caption">Document workspace</span>
 </div>
       <div class="header-divider"></div>
       <div class="file-pill">
@@ -34,6 +40,9 @@
 <input id="q" type="search" placeholder="Find in PDF" aria-label="Search PDF text"><button id="qn" aria-label="Next search result" title="Next result">⌕</button>
 </div>
       <button id="toggleInspector" class="icon-btn editor-panel-toggle" type="button" title="Show / hide properties" aria-label="Toggle properties panel" aria-pressed="true">◫</button>
+      <button class="paprify-theme-toggle paprify-theme-toggle--editor" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+        <span class="paprify-theme-toggle__icon" aria-hidden="true">☾</span>
+      </button>
       <button id="save" class="pri export-btn"><span>↓</span> Export PDF</button>
     </div>
     <button id="mobilePropertiesBtn" class="mobile-properties-button" type="button" title="Toggle properties" aria-label="Toggle properties">⚙</button>
@@ -75,11 +84,21 @@
       <div id="empty">
         <div class="land">
           <nav class="landing-nav page-wrap">
-            <a href="#top" class="landing-brand" aria-label="PDF Studio home"><span class="brand-mark">✦</span><span>PDF<span class="brand-soft">Studio</span></span></a>
+            <a href="#top" class="landing-brand" aria-label="Paprify home">
+            <span class="paprify-brand paprify-brand--nav" aria-hidden="true">
+              <img class="paprify-brand__light" src="assets/branding/paprify-horizontal-no-tagline.png" alt="">
+              <img class="paprify-brand__dark" src="assets/branding/paprify-horizontal-dark.png" alt="">
+            </span>
+            </a>
             <div class="nav-links">
-<a href="#tools">All tools</a><a href="#features">Why PDF Studio</a><a href="#how-it-works">How it works</a>
+<a href="#tools">All tools</a><a href="#features">Why Paprify</a><a href="#how-it-works">How it works</a>
 </div>
-            <button class="nav-button" id="navOpen">Launch editor <span>↗</span></button>
+            <div class="paprify-nav-actions">
+              <button class="paprify-theme-toggle" type="button" aria-label="Switch to dark mode" title="Switch to dark mode" aria-pressed="false">
+                <span class="paprify-theme-toggle__icon" aria-hidden="true">☾</span>
+              </button>
+              <button class="nav-button" id="navOpen">Launch editor <span>↗</span></button>
+            </div>
           </nav>
           <section class="hero page-wrap" id="top">
             <div class="hero-copy">
@@ -239,7 +258,12 @@
 <div class="cta-group">
 <button id="ctaOpen" class="cta-white">Open a PDF <span>↗</span></button><button id="ctaDemo" class="cta-outline">Try a sample document <span>→</span></button>
 </div></section>
-          <footer class="landing-footer page-wrap"><a href="#top" class="landing-brand"><span class="brand-mark">✦</span><span>PDF<span class="brand-soft">Studio</span></span></a><p>Made for the moments when a document needs more.</p>
+          <footer class="landing-footer page-wrap"><a href="#top" class="landing-brand" aria-label="Paprify home">
+              <span class="paprify-brand paprify-brand--footer" aria-hidden="true">
+              <img class="paprify-brand__light" src="assets/branding/paprify-horizontal-no-tagline.png" alt="">
+              <img class="paprify-brand__dark" src="assets/branding/paprify-horizontal-dark.png" alt="">
+            </span>
+            </a><p>Made for the moments when a document needs more.</p>
 <div class="footer-credit">
 <span>Made by <a class="github-credit" href="https://github.com/search?q=Ajanur%20Rahman&amp;type=users" target="_blank" rel="noopener noreferrer" title="Visit GitHub">Ajanur Rahman <span aria-hidden="true">↗</span></a></span><button class="github-configure" type="button" title="Set the correct GitHub profile URL">Configure GitHub link</button>
 </div></footer>
@@ -402,7 +426,7 @@
       <div class="command-input-shell">
 <span class="command-input-icon">⌕</span><input id="commandInput" type="search" autocomplete="off" placeholder="What do you want to do?" aria-label="Search editor actions"><kbd>ESC</kbd>
 </div>
-      <div class="command-overline" id="commandTitle">QUICK ACTIONS · PDF STUDIO</div>
+      <div class="command-overline" id="commandTitle">QUICK ACTIONS · PAPRIFY</div>
       <div id="commandResults" class="command-results"></div>
       <div class="command-bottom">
 <span>↑ ↓ Navigate   ↵ Select</span><span>⌘ K to reopen</span>
@@ -484,5 +508,6 @@
 <script src="js/ui/appearance.js"></script>
 <script src="js/ui/landing.js"></script>
 <script src="js/ui/workspace.js"></script>
+  <script src="js/ui/paprify-theme.js"></script>
 </body>
 </html>

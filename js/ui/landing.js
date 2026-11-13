@@ -42,15 +42,15 @@ async function runDemo() {
         page.drawRectangle({ x: 0, y: 0, width: 595, height: 842, color: rgb(.995, .996, 1) });
         page.drawRectangle({ x: 44, y: 735, width: 5, height: 50, color: rgb(.40, .33, .91) });
         page.drawText('A document you can actually edit', { x: 63, y: 766, size: 23, font: bold, color: rgb(.13, .13, .26) });
-        page.drawText('Your interactive PDF Studio playground', { x: 63, y: 746, size: 12, font: reg, color: rgb(.50, .51, .59) });
+        page.drawText('Your interactive Paprify playground', { x: 63, y: 746, size: 12, font: reg, color: rgb(.50, .51, .59) });
         page.drawLine({ start: { x: 44, y: 716 }, end: { x: 550, y: 716 }, color: rgb(.90, .89, .96), thickness: 1 });
         page.drawText('Click this sentence with Edit text to rewrite it.', { x: 50, y: 672, size: 14, font: reg, color: rgb(.28, .30, .40) });
         page.drawText('Select the lavender shape and customize fill, outline, width and opacity.', { x: 50, y: 644, size: 11, font: reg, color: rgb(.46, .46, .55) });
         page.drawText('Try dragging, resizing, duplicating, signing, and exporting the PDF.', { x: 50, y: 625, size: 11, font: reg, color: rgb(.46, .46, .55) });
         page.drawText('This sample is created locally, right inside your browser.', { x: 50, y: 160, size: 11, font: reg, color: rgb(.45, .46, .56) });
         page.drawLine({ start: { x: 50, y: 135 }, end: { x: 545, y: 135 }, thickness: 1, color: rgb(.91, .91, .95) });
-        page.drawText('PDF STUDIO / INTERACTIVE SAMPLE', { x: 50, y: 113, size: 8, font: bold, color: rgb(.41, .35, .81) });
-        await loadPdfDocument(new File([await d.save()], 'PDF-Studio-Demo.pdf', { type: 'application/pdf' }));
+        page.drawText('PAPRIFY / INTERACTIVE SAMPLE', { x: 50, y: 113, size: 8, font: bold, color: rgb(.41, .35, .81) });
+        await loadPdfDocument(new File([await d.save()], 'Paprify-Demo.pdf', { type: 'application/pdf' }));
         const a = { id: nextAnnotationId++, t: 'shp', k: 'round', x: 94, y: 304, w: 405, h: 171, fill: '#ddd7ff', fo: 1, c: '#6555e8', sw: 3, dash: 'solid', s: 20, tc: '#39305f', txt: 'Your ideas, your document', f: { k: 'h', b: 1, i: 0 } };
         annotations[0] = [a, { id: nextAnnotationId++, t: 'shp', k: 'ell', x: 390, y: 505, w: 90, h: 90, fill: '#d5f9ec', fo: 1, c: '#23ad83', sw: 3, dash: 'dashed', s: 14, tc: '#12624c', txt: '', f: { k: 'h', b: 0, i: 0 } }];
         setTool('select');
