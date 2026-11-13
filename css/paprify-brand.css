@@ -60,35 +60,64 @@
     --logo-visible-width: 155px;
 }
 
-.paprify-brand--icon {
-    --logo-visible-width: 109px;
-    position: absolute;
-    top: -9px;
-    left: -6px;
-}
-
-.paprify-brand--icon img {
-    width: calc(var(--logo-visible-width) * 1.302);
-}
-
-/* The editor uses the symbol portion of the same full-size logo image. */
+/*
+ * Editor header icon.
+ *
+ * Both supplied logos are horizontal images (1300 × 480). The artwork for
+ * the rounded document symbol occupies x=72–418 and y=88–434. Crop this
+ * region with CSS, so the header has a correctly sized symbol without
+ * requiring an additional logo image.
+ */
 .paprify-editor-icon.logo-icon {
-    display: block;
-    position: relative;
-    width: 46px;
-    height: 46px;
-    flex: none;
-    overflow: hidden;
+    --paprify-mark-size: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--paprify-mark-size);
+    height: var(--paprify-mark-size);
+    flex: 0 0 var(--paprify-mark-size);
     padding: 0;
+    overflow: hidden;
+    border: 0;
     border-radius: 11px;
     background: var(--paprify-navy);
 }
 
 .paprify-editor-icon .paprify-brand--icon {
-    /* Only the document pictogram is visible in this compact header button. */
-    --logo-visible-width: 115px;
-    top: -9px;
-    left: -7px;
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+.paprify-editor-icon .paprify-brand--icon img {
+    /* 1300 / 346 scales the source icon region to the button width. */
+    width: calc(var(--paprify-mark-size) * 3.75723);
+    height: auto;
+    top: calc(var(--paprify-mark-size) * -0.25434);
+    left: calc(var(--paprify-mark-size) * -0.20809);
+}
+
+/* Keep the product name and subtitle centred beside the icon. */
+.editor-identity {
+    align-items: center;
+}
+
+.editor-identity > div:nth-child(2) {
+    justify-content: center;
+}
+
+/*
+ * The selected tool keeps its background and border, but no longer uses
+ * the inset blue strip along its left edge.
+ */
+.tool-rail .tl.on {
+    box-shadow: none;
 }
 
 /* Theme control appears on both the landing page and the editor toolbar. */
@@ -427,4 +456,44 @@ html[data-theme="dark"] .mock-paper h3 {
 
 html[data-theme="dark"] .mock-paper .mock-bottom {
     color: #64748b;
+}
+
+/* Responsive logo and auxiliary controls — loaded after responsive.css. */
+@media (max-width: 590px) {
+    .paprify-editor-icon.logo-icon {
+        --paprify-mark-size: 40px;
+    }
+
+    html[data-theme="dark"] .mobile-properties-button {
+        background: #1c304b;
+        border-color: #38516f;
+        color: #9fc5ff;
+    }
+}
+
+@media (max-width: 350px) {
+    .paprify-brand--nav {
+        --logo-visible-width: 116px;
+    }
+}
+
+/* Dark-mode contrast for compact screens and the editor status controls. */
+html[data-theme="dark"] .tool-rail .tl:not(.on) {
+    color: #bac9dc;
+}
+
+html[data-theme="dark"] .editor-status .status-ready,
+html[data-theme="dark"] .editor-status .status-pages,
+html[data-theme="dark"] .editor-status #zl {
+    color: #d8e5f5;
+}
+
+html[data-theme="dark"] .editor-status button {
+    background: #1c304b;
+    border-color: #38516f;
+    color: #d8e5f5;
+}
+
+html[data-theme="dark"] .editor-status button:hover {
+    background: #274467;
 }
