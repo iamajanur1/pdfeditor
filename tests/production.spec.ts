@@ -41,7 +41,7 @@ test('existing PDF text is edited directly and old content is not searchable aft
   const textarea = page.getByRole('textbox', { name: 'Edit PDF text directly on the page' });
   await expect(textarea).toBeVisible();
   await textarea.fill('After correction');
-  await page.getByRole('button', { name: /Apply/ }).click();
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
 
   const [download] = await Promise.all([
     page.waitForEvent('download'),

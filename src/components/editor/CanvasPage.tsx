@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as pdfjsLib from 'pdfjs-dist';
 import { fromOutputPoint } from '@/lib/pdf';
 import { uid } from '@/lib/utils';
+import { splitPdfTextLines } from '@/lib/textLayout';
 import { usePdfEditor } from '@/hooks/usePdfEditor';
 import { InlineTextEditor, type InlineTextDraft, type InlineTextTarget } from '@/components/editor/InlineTextEditor';
 import type { ElementType, PageModel, PdfElement, Point, TextRegion, Tool } from '@/types/editor';
@@ -64,7 +65,7 @@ function SvgItem({ item, selected, zoom, onPointerDown, onDoubleClick }: {
 }) {
   const common = { opacity: item.opacity, stroke: item.color, strokeWidth: item.strokeWidth };
   const x = item.x, y = item.y, w = item.width, h = item.height;
-  const textLines = (item.text || '').split(/\r?\n/);
+  const textLines = splitPdfTextLines(item.text || '');
   const body = (() => {
     switch (item.type) {
       case 'highlight':

@@ -277,10 +277,10 @@ export function Editor({ initialAction, isDark, onToggleTheme, onClose }: Editor
       </div>
       <div className="editor-header-actions">
         <Button className="header-aux" variant="ghost" size="sm" onClick={() => setSearchOpen(value => !value)}><Search size={17}/><span>Find</span></Button>
-        <Button className="header-aux" variant="ghost" size="sm" disabled={Boolean(textDraft)} title={textDraft ? "Apply or cancel the active text edit before printing" : "Open print-ready PDF"} onClick={() => { void printDocument(); }}><Printer size={17}/><span>Print</span></Button>
+        <Button className="header-aux" variant="ghost" size="sm" disabled={Boolean(textDraft)} aria-label="Print" title={textDraft ? "Finish the active text edit before printing" : "Open print-ready PDF"} onClick={() => { void printDocument(); }}><Printer size={17}/><span>Print</span></Button>
         <Button className="header-aux" variant="ghost" size="sm" onClick={() => openRef.current?.click()}><FilePlus2 size={17}/><span>Open</span></Button>
         <Button variant="ghost" size="icon" aria-label="Toggle appearance" onClick={onToggleTheme}>{isDark ? <Sun size={18}/> : <Moon size={18}/>}</Button>
-        <Button className="export-button" size="sm" disabled={Boolean(textDraft)} title={textDraft ? "Apply or cancel the active text edit before downloading" : "Download PDF"} onClick={() => void editor.exportFile()}><Download size={17}/><span>Download</span></Button>
+        <Button className="export-button" size="sm" aria-label="Download" disabled={Boolean(textDraft)} title={textDraft ? "Finish the active text edit before downloading" : "Download PDF"} onClick={() => void editor.exportFile()}><Download size={17}/><span>Download</span></Button>
         <Button className="header-mobile-menu" size="icon" variant="ghost" aria-label="More tools" onClick={() => setMobileMenu(value => !value)}><Menu size={20}/></Button>
       </div>
     </header>

@@ -82,12 +82,19 @@ export function SignatureDialog({ open, onClose, pageId }: { open: boolean; onCl
     cut.getContext('2d')?.drawImage(canvas, x0 - 6, y0 - 6, cut.width, cut.height, 0, 0, cut.width, cut.height);
     const dataUrl = cut.toDataURL('image/png');
     const next = [...records, { id: uid('signature'), name: name.trim() || 'Signature', dataUrl }];
-    setRecords(next); localStorage.setItem(signatureStorageKey, JSON.stringify(next));
+    try {
+      localStorage.setItem(signatureStorageKey, JSON.stringify(next));
+      setRecords(next);
+    } catch {
+      editor.notify('Browser storage is full. The signature will be placed but not saved for reuse.');
+    }
     insert(dataUrl); clear();
   };
   const deleteRecord = (id: string) => {
     const next = records.filter(record => record.id !== id);
-    setRecords(next); localStorage.setItem(signatureStorageKey, JSON.stringify(next));
+    setRecords(next);
+    try { localStorage.setItem(signatureStorageKey, JSON.stringify(next)); }
+    catch { editor.notify('Could not update saved signatures in this browser.'); }
   };
 
   return <Dialog open={open} onOpenChange={value => { if (!value) onClose(); }}>
@@ -118,7 +125,7 @@ export function FormsDialog({ open, onClose }: { open: boolean; onClose(): void 
   return <Dialog open={open} onOpenChange={value => { if (!value) onClose(); }}><DialogContent className="forms-dialog"><div className="dialog-heading"><DialogTitle>Fill PDF form</DialogTitle><DialogDescription>Complete supported interactive text, checkbox and dropdown fields.</DialogDescription></div>
     <div className="form-fields-list">{loading ? <p>Looking for form fields…</p> : fields.length === 0 ? <p>No supported interactive form fields were found. You can still use Add text and Check tools to fill a flat document.</p> : fields.map(field => <label key={field.name}>
       <span>{field.name}</span>
-      {field.type === 'checkbox' ? <input type="checkbox" checked={Boolean(editor.snapshot.fields[field.name] ?? field.value)} onChange={event => editor.setField(field.name, event.target.checked)} /> : field.type === 'dropdown' ?
+      {field.type === 'checkbox' ? <input type="checkbox" checked={Boolean(editor.snapshot.fields[field.name] ?? field.value)} onChange={event => editor.setField(field.name, event.target.checked)} /> : (field.type === 'dropdown' || field.type === 'radio') ?
         <select value={String(editor.snapshot.fields[field.name] ?? field.value)} onChange={event => editor.setField(field.name, event.target.value)}>{(field.options || []).map(option => <option key={option}>{option}</option>)}</select> :
         <input type="text" value={String(editor.snapshot.fields[field.name] ?? field.value)} onChange={event => editor.setField(field.name, event.target.value)} disabled={field.type === 'other'} />}
     </label>)}</div>

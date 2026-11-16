@@ -6,6 +6,7 @@ const isMacOS12 = process.platform === 'darwin' && Number(release().split('.')[0
 const cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const calls = [
   ['run', 'validate'],
+  ['run', 'test:unit'],
   ['audit', '--omit=dev', '--audit-level=high'],
   ['run', 'test:e2e'],
 ];

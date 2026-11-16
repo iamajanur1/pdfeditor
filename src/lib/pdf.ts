@@ -3,11 +3,12 @@
  * pdf-lib writes annotations; PDF.js reads and renders original document content.
  */
 import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocument, StandardFonts, degrees, rgb, LineCapStyle, PDFName, PDFString } from 'pdf-lib';
+import { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, StandardFonts, degrees, rgb, LineCapStyle, PDFName, PDFHexString } from 'pdf-lib';
 import JSZip from 'jszip';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { DocumentSession, EditorSnapshot, FormFieldInfo, PdfElement, PageModel, Point } from '@/types/editor';
 import { safeHex, uid } from '@/lib/utils';
+import { splitPdfTextLines, wrapPdfParagraph, standardPdfFontFamily } from '@/lib/textLayout';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
@@ -102,43 +103,27 @@ async function embedImage(document: PDFDocument, url: string) {
   return document.embedPng(bytes);
 }
 
-function wrapVisualText(text: string, maxWidth: number, fontSize: number): string[] {
-  // Break long words as well as spaced text, avoiding oversized canvas allocations
-  // in the Unicode fallback path. This is approximate, not full document layout.
-  const charsPerLine = Math.max(1, Math.min(250, Math.floor(Math.max(20, maxWidth) / Math.max(3, fontSize * .54))));
-  const result: string[] = [];
-  for (const sourceLine of text.split(/\r?\n/)) {
-    if (!sourceLine) { result.push(''); continue; }
-    let remaining = sourceLine;
-    while (remaining.length > charsPerLine) {
-      const snippet = remaining.slice(0, charsPerLine + 1);
-      const breakAt = snippet.lastIndexOf(' ');
-      const take = breakAt > Math.floor(charsPerLine / 2) ? breakAt : charsPerLine;
-      result.push(remaining.slice(0, take));
-      remaining = remaining.slice(take).replace(/^ /, '');
-    }
-    result.push(remaining);
-  }
-  return result;
-}
-
 /** Render text as an image when a standard PDF font cannot represent its glyphs. */
-async function textAsPng(text: string, element: PdfElement): Promise<string> {
-  const scale = 2.5;
+async function textAsPng(text: string, element: PdfElement): Promise<{ url: string; scale: number }> {
   const fontSize = element.fontSize || 16;
-  const lines = text.split('\n');
+  const lines = splitPdfTextLines(text);
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Canvas is unavailable.');
-  context.font = `${element.italic ? 'italic ' : ''}${element.bold ? 'bold ' : ''}${fontSize * scale}px ${element.fontFamily || 'sans-serif'}`;
+  const fontString = (scale: number) => `${element.italic ? 'italic ' : ''}${element.bold ? 'bold ' : ''}${fontSize * scale}px ${element.fontFamily || 'sans-serif'}`;
+  context.font = fontString(2.5);
+  const naturalWidth = Math.max(5, ...lines.map(line => context.measureText(line).width));
+  // Browsers can crash or throw if the canvas for a long Unicode line is huge.
+  const scale = 2.5 * Math.min(1, 8000 / naturalWidth, 4000 / (lines.length * fontSize * 1.25 * 2.5 + 15));
+  context.font = fontString(scale);
   const maxWidth = Math.max(5, ...lines.map(line => context.measureText(line).width));
-  canvas.width = Math.ceil(maxWidth + 8 * scale);
-  canvas.height = Math.ceil(lines.length * fontSize * 1.25 * scale + 6 * scale);
-  context.font = `${element.italic ? 'italic ' : ''}${element.bold ? 'bold ' : ''}${fontSize * scale}px ${element.fontFamily || 'sans-serif'}`;
+  canvas.width = Math.max(1, Math.ceil(maxWidth + 8 * scale));
+  canvas.height = Math.max(1, Math.ceil(lines.length * fontSize * 1.25 * scale + 6 * scale));
+  context.font = fontString(scale);
   context.fillStyle = safeHex(element.color);
   context.textBaseline = 'top';
   lines.forEach((line, index) => context.fillText(line, 2 * scale, (index * fontSize * 1.25 + 2) * scale));
-  return canvas.toDataURL('image/png');
+  return { url: canvas.toDataURL('image/png'), scale };
 }
 
 async function drawPdfElement(document: PDFDocument, pdfPage: ReturnType<PDFDocument['getPages']>[number], item: PdfElement, fontCache: Map<string, Awaited<ReturnType<PDFDocument['embedFont']>>>) {
@@ -220,7 +205,7 @@ async function drawPdfElement(document: PDFDocument, pdfPage: ReturnType<PDFDocu
   if (item.type === 'note') {
     // Preserve the note as a native PDF Text annotation so a reader can open its content.
     const context = document.context;
-    const annotation = context.obj({ Type: 'Annot', Subtype: 'Text', Rect: [x, y, x + 22, y + 22], Contents: PDFString.of(item.text || ''), Name: 'Comment', C: [1, 0.84, 0.22], Open: false });
+    const annotation = context.obj({ Type: 'Annot', Subtype: 'Text', Rect: [x, y, x + 22, y + 22], Contents: PDFHexString.fromText(item.text || ''), Name: 'Comment', C: [1, 0.84, 0.22], Open: false });
     const ref = context.register(annotation);
     const annots = pdfPage.node.Annots();
     if (annots) annots.push(ref);
@@ -241,9 +226,9 @@ async function drawPdfElement(document: PDFDocument, pdfPage: ReturnType<PDFDocu
     const fontSize = Math.max(5, Math.min(180, item.fontSize || 16));
     const text = item.text || '';
     if (text.length > 4000) throw new Error('Text elements must be shorter than 4,000 characters.');
-    const lines = wrapVisualText(text, width + (item.type === 'text' ? 400 : 0), fontSize);
-    const family = (item.fontFamily || '').toLowerCase();
-    const fontType = family.includes('courier') || family.includes('mono') ? 'Courier' : family.includes('times') || family.includes('serif') ? 'TimesRoman' : 'Helvetica';
+    // SVG preview does not auto-wrap. Never split PDF text during export.
+    const lines = splitPdfTextLines(text);
+    const fontType = standardPdfFontFamily(item.fontFamily || '');
     const fontKey = `${fontType}-${item.bold ? 'bold' : 'regular'}-${item.italic ? 'italic' : 'upright'}`;
     const style = fontType === 'Helvetica'
       ? item.bold ? (item.italic ? StandardFonts.HelveticaBoldOblique : StandardFonts.HelveticaBold) : (item.italic ? StandardFonts.HelveticaOblique : StandardFonts.Helvetica)
@@ -252,17 +237,20 @@ async function drawPdfElement(document: PDFDocument, pdfPage: ReturnType<PDFDocu
         : item.bold ? (item.italic ? StandardFonts.TimesRomanBoldItalic : StandardFonts.TimesRomanBold) : (item.italic ? StandardFonts.TimesRomanItalic : StandardFonts.TimesRoman);
     const font = fontCache.get(fontKey) || await document.embedFont(style);
     fontCache.set(fontKey, font);
-    const top = item.y + fontSize; // Match the SVG text baseline in CanvasPage.
+    // The on-screen stamp is vertically centered; text/replacements use top baseline.
+    const top = item.type === 'stamp' ? item.y + height / 2 + fontSize * 0.34 : item.y + fontSize;
     for (const [i, line] of lines.entries()) {
       if (!line) continue;
       const actualY = H - top - i * fontSize * 1.22;
       try {
         let offX = 0;
-        if (item.align === 'center' || item.align === 'right') {
+        if (item.type === 'stamp' || item.align === 'center' || item.align === 'right') {
           const measured = font.widthOfTextAtSize(line, fontSize);
-          offX = item.align === 'center' ? Math.max(0, (width - measured) / 2) : Math.max(0, width - measured);
+          offX = item.type === 'stamp' || item.align === 'center'
+            ? (width - measured) / 2
+            : width - measured;
         }
-        pdfPage.drawText(line, { x: item.x + offX + (item.type === 'stamp' ? 5 : 0), y: actualY, size: fontSize, font, color, opacity });
+        pdfPage.drawText(line, { x: item.x + offX, y: actualY, size: fontSize, font, color, opacity });
         if (item.underline) {
           const measured = font.widthOfTextAtSize(line, fontSize);
           pdfPage.drawLine({ start: { x: item.x + offX, y: actualY - 2 }, end: { x: item.x + offX + measured, y: actualY - 2 }, color, thickness: 0.75 });
@@ -270,8 +258,8 @@ async function drawPdfElement(document: PDFDocument, pdfPage: ReturnType<PDFDocu
       } catch {
         // Helvetica does not support arbitrary Unicode. Use the browser's glyph fallback.
         const png = await textAsPng(line, { ...item, fontSize });
-        const image = await embedImage(document, png);
-        pdfPage.drawImage(image, { x: item.x, y: actualY - fontSize * 0.24, width: image.width / 2.5, height: image.height / 2.5, opacity });
+        const image = await embedImage(document, png.url);
+        pdfPage.drawImage(image, { x: item.x, y: actualY - fontSize * 0.24, width: image.width / png.scale, height: image.height / png.scale, opacity });
       }
     }
   }
@@ -338,12 +326,20 @@ export async function exportEditedPdf(session: DocumentSession, snapshot: Editor
           const box = form.getCheckBox(name);
           if (value) box.check(); else box.uncheck();
         } else {
-          try { form.getTextField(name).setText(value); }
-          catch { form.getDropdown(name).select(value); }
+          // PDF form controls have different setters. Preserve radio group edits.
+          const field = form.getField(name);
+          if (field instanceof PDFTextField) field.setText(value);
+          else if (field instanceof PDFDropdown) field.select(value);
+          else if (field instanceof PDFRadioGroup) field.select(value);
+          else throw new Error('Unsupported form field type');
         }
-      } catch { /* Unknown or unsupported form fields are left untouched. */ }
+      } catch (error) {
+        // Never silently export the old field value after the user changes it.
+        throw new Error(`Cannot apply form field "${name}": ${error instanceof Error ? error.message : 'unknown error'}`);
+      }
     }
-    try { form.flatten(); } catch { /* Some malformed forms cannot be flattened. */ }
+    try { form.flatten(); }
+    catch (error) { throw new Error(`Cannot flatten the edited PDF form: ${error instanceof Error ? error.message : 'unknown error'}`); }
   }
 
   const requiresReconstruction = snapshot.pages.some(page =>
@@ -471,22 +467,29 @@ export async function textToPdf(file: File): Promise<Uint8Array> {
   let y = pageHeight - margin - size;
   const newLine = () => {
     y -= lineHeight;
-    if (y < margin) { page = document.addPage([pageWidth, pageHeight]); y = pageHeight - margin - size; }
+    if (y < margin) {
+      if (document.getPageCount() >= MAX_PAGES) throw new Error(`Text conversion is limited to ${MAX_PAGES} pages.`);
+      page = document.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin - size;
+    }
   };
   const maxWidth = pageWidth - margin * 2;
+  // Use the same font metrics as the PDF output. Fixed characters-per-line
+  // guesses clipped wide letters and split narrow text unnecessarily.
+  const measuringCanvas = document.createElement('canvas');
+  const measuringContext = measuringCanvas.getContext('2d');
+  if (measuringContext) measuringContext.font = `${size}px Arial`;
+  const measure = (value: string): number => {
+    try { return font.widthOfTextAtSize(value, size); }
+    catch { return measuringContext?.measureText(value).width ?? [...value].length * size; }
+  };
   for (const paragraph of contents.split('\n')) {
-    if (!paragraph.length) { newLine(); continue; }
-    // Safe character-level wrapping: never clip an unbroken URL or long word.
-    let part = '';
-    for (const character of paragraph) {
-      const trial = part + character;
-      if (part && trial.length * 6.1 > maxWidth) {
-        await drawTextLine(page, part, margin, y, size, font, document);
-        newLine();
-        part = character;
-      } else part = trial;
+    if (!paragraph) { newLine(); continue; }
+    const lines = wrapPdfParagraph(paragraph, maxWidth, measure);
+    for (const [index, line] of lines.entries()) {
+      if (index) newLine();
+      if (line) await drawTextLine(page, line, margin, y, size, font, document);
     }
-    if (part) await drawTextLine(page, part, margin, y, size, font, document);
     newLine();
   }
   return new Uint8Array(await document.save({ useObjectStreams: true }));
@@ -652,10 +655,10 @@ export async function getFormFields(session: DocumentSession): Promise<FormField
     const form = pdf.getForm();
     return form.getFields().map(field => {
       const name = field.getName();
-      const typeName = field.constructor.name;
-      if (typeName === 'PDFTextField') return { name, type: 'text' as const, value: (field as ReturnType<typeof form.getTextField>).getText() || '' };
-      if (typeName === 'PDFCheckBox') return { name, type: 'checkbox' as const, value: (field as ReturnType<typeof form.getCheckBox>).isChecked() };
-      if (typeName === 'PDFDropdown') return { name, type: 'dropdown' as const, value: (field as ReturnType<typeof form.getDropdown>).getSelected()[0] || '', options: (field as ReturnType<typeof form.getDropdown>).getOptions() };
+      if (field instanceof PDFTextField) return { name, type: 'text' as const, value: field.getText() || '' };
+      if (field instanceof PDFCheckBox) return { name, type: 'checkbox' as const, value: field.isChecked() };
+      if (field instanceof PDFDropdown) return { name, type: 'dropdown' as const, value: field.getSelected()[0] || '', options: field.getOptions() };
+      if (field instanceof PDFRadioGroup) return { name, type: 'radio' as const, value: field.getSelected() || '', options: field.getOptions() };
       return { name, type: 'other' as const, value: '' };
     });
   } catch { return []; }

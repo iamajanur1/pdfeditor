@@ -22,7 +22,7 @@ test('landing is usable and upload opens the real PDF editor', async ({ page }) 
   const edit = page.getByRole('textbox', { name: 'Edit PDF text directly on the page' });
   await expect(edit).toBeVisible();
   await edit.fill('Edited sample text');
-  await page.getByRole('button', { name: /Apply/ }).click();
+  await page.getByRole('button', { name: 'Apply', exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Download' }).click();
   const download = await downloadPromise;
