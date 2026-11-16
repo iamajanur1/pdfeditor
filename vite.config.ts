@@ -9,6 +9,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: { '/api/conversion': 'http://127.0.0.1:8010' },
+  },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1400,

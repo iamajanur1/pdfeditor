@@ -34,7 +34,9 @@ const tools: Record<(typeof categories)[number]['value'], { name: string; descri
     { name: 'PDF to PNG', description: 'Download page images', action: 'pdf-to-png', icon: Images },
     { name: 'PDF to JPG', description: 'Export as image files', action: 'pdf-to-jpg', icon: FileImage },
     { name: 'PDF to text', description: 'Extract selectable text', action: 'pdf-to-text', icon: ArrowDownToLine },
-    { name: 'PDF to Word', description: 'Editable DOCX — text only', action: 'pdf-to-docx', icon: FileType2 },
+    { name: 'PDF to Word', description: 'Editable, visual or enhanced DOCX', action: 'pdf-to-docx', icon: FileType2 },
+    { name: 'PDF to Excel', description: 'Extract tables to XLSX · server', action: 'pdf-to-xlsx', icon: FileJson },
+    { name: 'PDF to PowerPoint', description: 'Create image-based slides · server', action: 'pdf-to-pptx', icon: Layers },
     { name: 'PDF to WebP', description: 'Smaller web-friendly page images', action: 'pdf-to-webp', icon: FileImage },
     { name: 'PDF to HTML', description: 'Readable text-based HTML', action: 'pdf-to-html', icon: FileCode2 },
     { name: 'PDF to JSON', description: 'Structured page text', action: 'pdf-to-json', icon: FileJson },
@@ -47,6 +49,9 @@ const tools: Record<(typeof categories)[number]['value'], { name: string; descri
     { name: 'WebP to PDF', description: 'Convert WebP images', action: 'images-to-pdf', icon: FileImage },
     { name: 'BMP to PDF', description: 'Convert bitmap images', action: 'images-to-pdf', icon: Images },
     { name: 'TXT to PDF', description: 'Create a PDF from plain text', action: 'text-to-pdf', icon: FileType2 },
+    { name: 'Word to PDF', description: 'Convert DOC/DOCX · server', action: 'office-to-pdf', icon: FileType2 },
+    { name: 'Excel to PDF', description: 'Convert XLS/XLSX · server', action: 'office-to-pdf', icon: FileJson },
+    { name: 'PowerPoint to PDF', description: 'Convert PPT/PPTX · server', action: 'office-to-pdf', icon: Layers },
   ],
 };
 
@@ -130,7 +135,7 @@ export function Landing({ isDark, onToggleTheme, onOpenFile, onTool, onImages }:
             <span className="upload-button">Choose PDF file <ArrowRight size={17} /></span>
             <small>PDF files up to 100 MB · best on modern devices</small>
           </div>
-          <div className="hero-assurances"><span><ShieldCheck size={16} /> Files stay on your device</span><span><Check size={16} /> No account needed</span><span><Check size={16} /> Free to get started</span></div>
+          <div className="hero-assurances"><span><ShieldCheck size={16} /> Local tools keep files on-device</span><span><Check size={16} /> No account needed</span><span><Check size={16} /> Free to get started</span></div>
         </section>
 
         <section id="tools" className="tools-section" aria-labelledby="tools-title">
@@ -167,7 +172,7 @@ export function Landing({ isDark, onToggleTheme, onOpenFile, onTool, onImages }:
         <section id="privacy" className="privacy-section">
           <LockKeyhole size={26} strokeWidth={1.5} />
           <h2>Private by design.</h2>
-          <p>Paprify processes files in your browser. No account or cloud document storage is required. Edited original-text pages are reconstructed when exported, which converts their unedited content to images. This is not a secure redaction tool. Reusable signatures remain in this browser until deleted.</p>
+          <p>Browser tools process files on your device. Office conversions and enhanced PDF conversions require an optional server; you must explicitly approve uploading files for those tools. No account is required for the browser tools. Edited original-text pages are reconstructed when exported, which converts their unedited content to images. This is not a secure redaction tool. Reusable signatures remain in this browser until deleted.</p>
         </section>
       </main>
       <footer className="site-footer"><Brand isDark={isDark} small /><span>PDFs, your way.</span><p>© {new Date().getFullYear()} Paprify · Browser-based PDF tools</p></footer>

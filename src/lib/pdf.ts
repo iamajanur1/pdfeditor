@@ -3,7 +3,7 @@
  * pdf-lib writes annotations; PDF.js reads and renders original document content.
  */
 import * as pdfjsLib from 'pdfjs-dist';
-import { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, StandardFonts, degrees, rgb, LineCapStyle, PDFName, PDFHexString } from 'pdf-lib';
+import { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, StandardFonts, degrees, rgb, LineCapStyle, PDFName, PDFHexString, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } from 'pdf-lib';
 import JSZip from 'jszip';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { DocumentSession, EditorSnapshot, FormFieldInfo, PdfElement, PageModel, Point } from '@/types/editor';
@@ -417,40 +417,68 @@ export async function mergePdfFiles(files: File[]): Promise<Uint8Array> {
   return mergePdfSources(null, files);
 }
 
-/** Converts browser-supported PNG, JPG, WebP and BMP images into a PDF. */
-export async function imagesToPdf(files: File[]): Promise<Uint8Array> {
+/** Options used by the image conversion panel, in standard PDF points (72pt/inch). */
+export interface ImagePdfOptions {
+  pageSize?: 'original' | 'a4' | 'letter';
+  layout?: 'contain' | 'cover';
+  margin?: number;
+  orientation?: 'auto' | 'portrait' | 'landscape';
+}
+
+/** Combine photos into correctly sized pages without reducing original JPEG/PNG resolution. */
+export async function imagesToPdf(files: File[], options: ImagePdfOptions = {}): Promise<Uint8Array> {
   if (!files.length) throw new Error('Choose at least one image.');
   if (files.length > 50) throw new Error('Choose at most 50 images per conversion.');
   if (files.some(file => file.size > 20 * 1024 * 1024)) throw new Error('Each image must be less than 20 MB.');
   if (files.reduce((sum, file) => sum + file.size, 0) > MAX_COMBINED_BYTES) throw new Error('Combined image input must be less than 150 MB.');
   const pdf = await PDFDocument.create();
+  const pageSize = options.pageSize || 'original';
+  const margin = Math.max(0, Math.min(90, options.margin ?? 0));
   for (const file of files) {
-    const detected = /\.bmp$/i.test(file.name) ? 'image/bmp' : file.type;
+    const detected = /\.bmp$/i.test(file.name) ? 'image/bmp' : /\.webp$/i.test(file.name) ? 'image/webp' : /\.png$/i.test(file.name) ? 'image/png' : /\.jpe?g$/i.test(file.name) ? 'image/jpeg' : file.type;
     if (!['image/png', 'image/jpeg', 'image/webp', 'image/bmp'].includes(detected)) throw new Error(`Unsupported image format: ${file.name}`);
     let bytes = new Uint8Array(await file.arrayBuffer());
     let type = detected;
     if (type === 'image/webp' || type === 'image/bmp') {
       const bitmap = await createImageBitmap(file);
       try {
-        const shrink = Math.min(1, 3000 / Math.max(bitmap.width, bitmap.height));
+        if (bitmap.width * bitmap.height > 32_000_000) throw new Error(`${file.name} is too large to decode safely in this browser.`);
         const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * shrink));
-        canvas.height = Math.max(1, Math.round(bitmap.height * shrink));
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Image conversion is unavailable on this browser.');
-        ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Cannot decode image.')), 'image/png'));
-        bytes = new Uint8Array(await blob.arrayBuffer());
-        type = 'image/png';
-        canvas.width = canvas.height = 0;
+        try {
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Image conversion is unavailable on this browser.');
+          ctx.drawImage(bitmap, 0, 0);
+          const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Cannot decode image.')), 'image/png'));
+          bytes = new Uint8Array(await blob.arrayBuffer());
+          type = 'image/png';
+        } finally { canvas.width = canvas.height = 0; }
       } finally { bitmap.close(); }
     }
     const img = type === 'image/png' ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
-    const factor = Math.min(1, 1200 / Math.max(img.width, img.height));
-    const width = img.width * factor;
-    const height = img.height * factor;
+    // Images with no paper selection use 96dpi, capped to a standard max PDF dimension.
+    const intrinsicScale = Math.min(.75, 14400 / Math.max(img.width, img.height));
+    let width = img.width * intrinsicScale;
+    let height = img.height * intrinsicScale;
+    if (pageSize !== 'original') {
+      const base = pageSize === 'a4' ? [595.28, 841.89] : [612, 792];
+      const orientation = options.orientation || 'auto';
+      const landscape = orientation === 'landscape' || (orientation === 'auto' && img.width > img.height);
+      [width, height] = landscape ? [base[1], base[0]] : [base[0], base[1]];
+    }
     const page = pdf.addPage([width, height]);
-    page.drawImage(img, { x: 0, y: 0, width, height });
+    const availableWidth = Math.max(1, width - margin * 2);
+    const availableHeight = Math.max(1, height - margin * 2);
+    const contain = Math.min(availableWidth / img.width, availableHeight / img.height);
+    const cover = Math.max(availableWidth / img.width, availableHeight / img.height);
+    const factor = (options.layout || 'contain') === 'cover' ? cover : contain;
+    if (options.layout === 'cover' && margin > 0) {
+      page.pushOperators(pushGraphicsState(), rectangle(margin, margin, availableWidth, availableHeight), clip(), endPath());
+    }
+    const dw = img.width * factor, dh = img.height * factor;
+    page.drawImage(img, { x: (width - dw) / 2, y: (height - dh) / 2, width: dw, height: dh });
+    if (options.layout === 'cover' && margin > 0) page.pushOperators(popGraphicsState());
   }
   return new Uint8Array(await pdf.save({ useObjectStreams: true }));
 }
@@ -526,16 +554,29 @@ export async function splitDocument(session: DocumentSession, snapshot: EditorSn
   return new Uint8Array(await result.save());
 }
 
-export async function documentToImages(session: DocumentSession, snapshot: EditorSnapshot, kind: 'png' | 'jpeg' | 'webp', scale = 1.5) {
-  if (snapshot.pages.length > 200) throw new Error('Image conversion is limited to 200 pages at once to protect browser memory. Extract a smaller range first.');
+export interface PdfImageOptions {
+  dpi?: number;
+  pageNumbers?: number[];
+  quality?: number;
+}
+
+/** Render selected pages with selectable output quality. A single page downloads directly. */
+export async function documentToImages(session: DocumentSession, snapshot: EditorSnapshot, kind: 'png' | 'jpeg' | 'webp', options: PdfImageOptions = {}): Promise<{ data: Blob; zipped: boolean }> {
+  const selected = options.pageNumbers?.length ? [...new Set(options.pageNumbers)] : snapshot.pages.map((_, index) => index + 1);
+  if (selected.length > 200) throw new Error('Image conversion is limited to 200 pages at once.');
+  if (selected.some(n => !Number.isInteger(n) || n < 1 || n > snapshot.pages.length)) throw new Error('Invalid page number selected.');
+  const dpi = Math.max(72, Math.min(300, options.dpi || 144));
+  const scale = dpi / 72;
+  const quality = Math.max(.1, Math.min(1, options.quality ?? .9));
   const bytes = await exportEditedPdf(session, snapshot);
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
   const zip = new JSZip();
   try {
-    for (let i = 1; i <= pdf.numPages; i++) {
+    let lastBlob: Blob | null = null;
+    for (const i of selected) {
       const page = await pdf.getPage(i);
       const viewport = page.getViewport({ scale });
-      if (viewport.width * viewport.height > 25_000_000) throw new Error('This page is too large for reliable browser image conversion.');
+      if (viewport.width * viewport.height > 30_000_000) throw new Error(`Page ${i} exceeds the safe image size at ${dpi} DPI. Choose a lower resolution.`);
       const canvas = document.createElement('canvas');
       try {
         canvas.width = Math.ceil(viewport.width);
@@ -545,14 +586,17 @@ export async function documentToImages(session: DocumentSession, snapshot: Edito
         if (kind === 'jpeg') { context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); }
         await page.render({ canvasContext: context, viewport }).promise;
         const output = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-          blob => blob ? resolve(blob) : reject(new Error(`${kind.toUpperCase()} conversion is unsupported by this browser.`)),
-          `image/${kind}`, kind === 'jpeg' ? 0.86 : 0.88,
+          value => value ? resolve(value) : reject(new Error('Could not render this page as an image.')),
+          `image/${kind}`, quality,
         ));
-        if (output.type !== `image/${kind}`) throw new Error(`${kind.toUpperCase()} conversion is unsupported by this browser.`);
-        zip.file(`page-${String(i).padStart(3, '0')}.${kind === 'jpeg' ? 'jpg' : kind}`, output);
+        if (output.type !== `image/${kind}`) throw new Error(`${kind.toUpperCase()} is unsupported by this browser.`);
+        if (selected.length === 1) lastBlob = output;
+        else zip.file(`page-${String(i).padStart(3, '0')}.${kind === 'jpeg' ? 'jpg' : kind}`, output);
       } finally { canvas.width = canvas.height = 0; page.cleanup(); }
     }
-    return await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } });
+    return selected.length === 1
+      ? { data: lastBlob!, zipped: false }
+      : { data: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 3 } }), zipped: true };
   } finally { await pdf.destroy().catch(() => {}); }
 }
 
@@ -598,19 +642,107 @@ export async function pdfToText(session: DocumentSession, snapshot: EditorSnapsh
 
 const escapeXml = (text: string) => text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-/** Editable DOCX based on extracted text. Original layout, fonts and graphics aren't reproduced. */
+/** Editable Word document with approximate PDF line spacing, indent and font sizes.
+ * PDFs do not store Word paragraph/table semantics; complex layouts remain approximate.
+ */
 export async function pdfToDocx(session: DocumentSession, snapshot: EditorSnapshot): Promise<Blob> {
   const pages = await extractDocumentText(session, snapshot);
-  if (!pages.some(page => page.lines.some(line => line.trim()))) throw new Error('No selectable text found. OCR is needed for a scanned PDF.');
+  if (!pages.some(page => page.lines.some(line => line.trim()))) throw new Error('No selectable text found. Try scanned-document OCR or visual Word instead.');
   const zip = new JSZip();
   zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
   zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
-  const paragraphs = pages.map((page, idx) => {
-    const content = page.lines.map(line => `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`).join('');
-    return content + (idx < pages.length - 1 ? '<w:p><w:r><w:br w:type="page"/></w:r></w:p>' : '');
-  }).join('');
-  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${paragraphs}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body></w:document>`);
+  const allParagraphs: string[] = [];
+  for (const [pageIndex, pageData] of pages.entries()) {
+    const model = snapshot.pages[pageIndex];
+    const fonts: { y: number; x: number; size: number; font: string }[] = [];
+    if (model.sourceIndex !== null) {
+      const source = await session.pdf.getPage(model.sourceIndex + 1);
+      const viewport = source.getViewport({ scale: 1, rotation: 0 });
+      const content = await source.getTextContent();
+      content.items.forEach(item => {
+        if (!('str' in item) || !item.str.trim()) return;
+        const t = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const family = String(content.styles?.[item.fontName]?.fontFamily || 'Arial');
+        fonts.push({ x: t[4], y: t[5], size: Math.max(6, Math.min(72, Math.hypot(t[2], t[3]) || item.height || 11)), font: family });
+      });
+    }
+    const seenFonts = fonts.sort((a, b) => a.y - b.y || a.x - b.x);
+    let lastY = 0;
+    const firstFont = seenFonts[0];
+    let fontPointer = 0;
+    for (const [lineIndex, value] of pageData.lines.entries()) {
+      let size = 11, indent = 0, before = 0, family = 'Arial';
+      const region = seenFonts[fontPointer];
+      if (region) {
+        size = region.size;
+        indent = Math.max(0, Math.min(9500, Math.round((region.x - 36) * 20)));
+        family = /(?<!sans-)serif|times/i.test(region.font) ? 'Times New Roman' : /mono|courier/i.test(region.font) ? 'Courier New' : 'Arial';
+        const previous = lastY || (firstFont?.y ?? region.y);
+        before = Math.max(0, Math.min(800, Math.round((region.y - previous - size * 1.1) * 20)));
+        lastY = region.y;
+        const currentY = region.y;
+        while (fontPointer < seenFonts.length && Math.abs(seenFonts[fontPointer].y - currentY) < size * .7) fontPointer++;
+      }
+      const xmlText = escapeXml(value);
+      const lineBreak = pageIndex > 0 && lineIndex === 0 ? '<w:pageBreakBefore/>' : '';
+      const props = `<w:pPr>${lineBreak}<w:ind w:left="${indent}"/><w:spacing w:before="${before}" w:after="0"/></w:pPr>`;
+      const familyXml = escapeXml(family);
+      allParagraphs.push(`<w:p>${props}<w:r><w:rPr><w:rFonts w:ascii="${familyXml}" w:hAnsi="${familyXml}"/><w:sz w:val="${Math.round(size * 2)}"/></w:rPr><w:t xml:space="preserve">${xmlText}</w:t></w:r></w:p>`);
+    }
+    if (!pageData.lines.length && pageIndex > 0) allParagraphs.push('<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>');
+  }
+  const firstPage = snapshot.pages[0];
+  const pageWidth = Math.min(31680, Math.max(1440, Math.round((firstPage?.width || 595.28) * 20)));
+  const pageHeight = Math.min(31680, Math.max(1440, Math.round((firstPage?.height || 841.89) * 20)));
+  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${allParagraphs.join('')}<w:sectPr><w:pgSz w:w="${pageWidth}" w:h="${pageHeight}"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>`);
   return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+}
+
+/** Visual-fidelity Word: one sharp image per PDF page, not editable text. */
+export async function pdfToVisualDocx(session: DocumentSession, snapshot: EditorSnapshot): Promise<Blob> {
+  if (snapshot.pages.length > 35) throw new Error('Visual Word export supports up to 35 pages. Select fewer pages for large documents.');
+  const bytes = await exportEditedPdf(session, snapshot);
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const zip = new JSZip();
+  const entries: string[] = [];
+  const relationships: string[] = [];
+  let firstWidth = 595.28, firstHeight = 841.89;
+  try {
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const page = await pdf.getPage(number);
+      const rawViewport = page.getViewport({ scale: 1 });
+      if (number === 1) { firstWidth = rawViewport.width; firstHeight = rawViewport.height; }
+      const widthLimit = 1600 / rawViewport.width;
+      const pixelLimit = Math.sqrt(5_000_000 / (rawViewport.width * rawViewport.height));
+      const viewport = page.getViewport({ scale: Math.min(2, widthLimit, pixelLimit) });
+      const canvas = document.createElement('canvas');
+      let jpg: Blob | null = null;
+      try {
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not initialize Word visual export.');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        jpg = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Could not render PDF page.')), 'image/jpeg', .91));
+      } finally { canvas.width = canvas.height = 0; page.cleanup(); }
+      if (!jpg) throw new Error('Could not convert the PDF page to a Word image.');
+      zip.file(`word/media/page${number}.jpg`, jpg);
+      relationships.push(`<Relationship Id="rId${number}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/page${number}.jpg"/>`);
+      const margin = 20;
+      const factor = Math.min((firstWidth - margin * 2) / rawViewport.width, (firstHeight - margin * 2) / rawViewport.height);
+      const cx = Math.max(1, Math.round(rawViewport.width * factor * 12700));
+      const cy = Math.max(1, Math.round(rawViewport.height * factor * 12700));
+      entries.push(`<w:p><w:pPr>${number > 1 ? '<w:pageBreakBefore/>' : ''}<w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${number}" name="PDF page ${number}"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${number}" name="page${number}.jpg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="rId${number}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`);
+    }
+  } finally { await pdf.destroy().catch(() => {}); }
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdOffice" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationships.join('')}</Relationships>`);
+  const w = Math.min(31680, Math.round(firstWidth * 20)), h = Math.min(31680, Math.round(firstHeight * 20));
+  zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${entries.join('')}<w:sectPr><w:pgSz w:w="${w}" w:h="${h}"/><w:pgMar w:top="0" w:right="0" w:bottom="0" w:left="0" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+  return zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 5 } });
 }
 
 /** Readable HTML with page-separated text; this is intentionally not a visual PDF-to-HTML clone. */
@@ -618,6 +750,38 @@ export async function pdfToHtml(session: DocumentSession, snapshot: EditorSnapsh
   const pages = await extractDocumentText(session, snapshot);
   const title = escapeXml(session.name);
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}</title><style>body{font:16px/1.6 system-ui,sans-serif;max-width:850px;margin:40px auto;padding:0 20px;color:#172738}section{border-bottom:1px solid #e0e5eb;padding:16px 0 36px}p{margin:.25em 0;white-space:pre-wrap}@media print{section{break-after:page}}</style></head><body><h1>${title}</h1>${pages.map(page => `<section><h2>Page ${page.page}</h2>${page.lines.map(line => `<p>${escapeXml(line)}</p>`).join('')}</section>`).join('')}</body></html>`;
+}
+
+/** Self-contained visual HTML; raster images preserve appearance, not editable HTML layout. */
+export async function pdfToVisualHtml(session: DocumentSession, snapshot: EditorSnapshot): Promise<string> {
+  if (snapshot.pages.length > 30) throw new Error('Visual HTML export is limited to 30 pages per file.');
+  const bytes = await exportEditedPdf(session, snapshot);
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const textPages = await extractDocumentText(session, snapshot);
+  const figures: string[] = [];
+  try {
+    for (let number = 1; number <= pdf.numPages; number++) {
+      const page = await pdf.getPage(number);
+      const viewport = page.getViewport({ scale: 1.5 });
+      if (viewport.width * viewport.height > 15_000_000) throw new Error('This PDF page is too large for a browser-based visual HTML export.');
+      const canvas = document.createElement('canvas');
+      let dataUrl = '';
+      try {
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Could not render HTML page image.');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        dataUrl = canvas.toDataURL('image/jpeg', .88);
+      } finally { canvas.width = canvas.height = 0; page.cleanup(); }
+      const pageText = escapeXml(textPages[number - 1]?.lines.join('\n') || '');
+      figures.push(`<figure><img alt="PDF page ${number}" src="${dataUrl}" width="${Math.round(viewport.width)}" height="${Math.round(viewport.height)}"><figcaption>Page ${number}</figcaption><details><summary>View or copy extracted text</summary><pre>${pageText}</pre></details></figure>`);
+    }
+  } finally { await pdf.destroy().catch(() => {}); }
+  const title = escapeXml(session.name.replace(/\.pdf$/i, ''));
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>*{box-sizing:border-box}body{font:16px/1.5 system-ui,sans-serif;background:#eff2f6;color:#18283d;margin:0;padding:24px}main{max-width:980px;margin:auto}h1{font-size:24px;margin:0 0 18px}figure{margin:0 0 25px;background:#fff;box-shadow:0 5px 24px #17273825}img{width:100%;height:auto;display:block}figcaption{padding:10px 16px;font-size:13px}details{padding:0 16px 16px}summary{cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere}@media print{body{padding:0;background:#fff}h1,details,figcaption{display:none}figure{box-shadow:none;break-after:page;margin:0}img{max-height:100vh;object-fit:contain}}</style></head><body><main><h1>${title}</h1>${figures.join('')}</main></body></html>`;
 }
 
 export async function pdfToJson(session: DocumentSession, snapshot: EditorSnapshot): Promise<string> {

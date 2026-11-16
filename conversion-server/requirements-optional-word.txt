@@ -1,0 +1,3 @@
+# Optional advanced PDF-to-editable-Word engine.
+# Review PyMuPDF/pdf2docx AGPL/commercial obligations before distribution.
+pdf2docx>=0.5.8,<1

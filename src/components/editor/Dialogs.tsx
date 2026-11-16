@@ -4,8 +4,9 @@ import { PDFDocument } from 'pdf-lib';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { usePdfEditor } from '@/hooks/usePdfEditor';
-import { documentToImages, downloadBlob, exportEditedPdf, getFormFields, mergeDocuments, pdfToText, pdfToDocx, pdfToHtml, pdfToJson, pdfToMarkdown, pdfToEpub, splitDocument } from '@/lib/pdf';
+import { documentToImages, downloadBlob, exportEditedPdf, getFormFields, mergeDocuments, pdfToText, pdfToDocx, pdfToVisualDocx, pdfToHtml, pdfToVisualHtml, pdfToJson, pdfToMarkdown, pdfToEpub, splitDocument } from '@/lib/pdf';
 import { readableError, uid } from '@/lib/utils';
+import { conversionStatus, convertRemotely } from '@/lib/remoteConversion';
 import type { FormFieldInfo, PdfElement } from '@/types/editor';
 
 const PRESET_STAMPS = ['APPROVED', 'NOT APPROVED', 'DRAFT', 'FINAL', 'COMPLETED', 'CONFIDENTIAL', 'VOID', 'REVIEWED', 'COPY', 'RECEIVED', 'PAID', 'SIGN HERE'];
@@ -133,7 +134,7 @@ export function FormsDialog({ open, onClose }: { open: boolean; onClose(): void 
   </DialogContent></Dialog>;
 }
 
-export type Utility = 'merge' | 'split' | 'pdf-to-png' | 'pdf-to-jpg' | 'pdf-to-webp' | 'pdf-to-text' | 'pdf-to-docx' | 'pdf-to-html' | 'pdf-to-json' | 'pdf-to-markdown' | 'pdf-to-epub' | null;
+export type Utility = 'merge' | 'split' | 'pdf-to-png' | 'pdf-to-jpg' | 'pdf-to-webp' | 'pdf-to-text' | 'pdf-to-docx' | 'pdf-to-html' | 'pdf-to-json' | 'pdf-to-markdown' | 'pdf-to-epub' | 'pdf-to-xlsx' | 'pdf-to-pptx' | null;
 
 function parseRanges(value: string, count: number): number[] {
   const result = new Set<number>();
@@ -153,7 +154,21 @@ export function UtilityDialog({ utility, onClose }: { utility: Utility; onClose(
   const [pages, setPages] = useState('1');
   const [files, setFiles] = useState<File[]>([]);
   const [working, setWorking] = useState(false);
+  const [imageRange, setImageRange] = useState('all');
+  const [imageDpi, setImageDpi] = useState(200);
+  const [imageQuality, setImageQuality] = useState(.9);
+  const [htmlMode, setHtmlMode] = useState<'visual' | 'text'>('visual');
+  const [wordMode, setWordMode] = useState<'editable' | 'visual' | 'enhanced' | 'ocr'>('editable');
+  const [consent, setConsent] = useState(false);
+  const [serverFeatures, setServerFeatures] = useState<Record<string, boolean> | null>(null);
   const count = editor.snapshot.pages.length;
+  useEffect(() => {
+    if (!utility) return;
+    setConsent(false);
+    let alive = true;
+    void conversionStatus().then(info => { if (alive) setServerFeatures(info?.features ?? null); });
+    return () => { alive = false; };
+  }, [utility]);
   const run = async () => {
     if (!editor.session || !utility) return;
     setWorking(true);
@@ -175,10 +190,28 @@ export function UtilityDialog({ utility, onClose }: { utility: Utility; onClose(
         const text = await pdfToText(editor.session, editor.snapshot);
         downloadBlob(text, `${name}.txt`, 'text/plain;charset=utf-8');
       } else if (utility === 'pdf-to-docx') {
-        const result = await pdfToDocx(editor.session, editor.snapshot);
-        downloadBlob(result, `${name}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        if (wordMode === 'enhanced' || wordMode === 'ocr') {
+          if (!consent) throw new Error('Please confirm server processing first.');
+          if (!serverFeatures?.[wordMode === 'ocr' ? 'pdf_to_ocr_docx' : 'pdf_to_docx']) throw new Error('The selected Word conversion engine is unavailable.');
+          const bytes = await exportEditedPdf(editor.session, editor.snapshot);
+          const result = await convertRemotely(new File([bytes], `${name}.pdf`, { type: 'application/pdf' }), 'docx', { ocr: wordMode === 'ocr' });
+          downloadBlob(result, `${name}-${wordMode === 'ocr' ? 'ocr' : 'enhanced'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        } else {
+          const result = wordMode === 'visual'
+            ? await pdfToVisualDocx(editor.session, editor.snapshot)
+            : await pdfToDocx(editor.session, editor.snapshot);
+          downloadBlob(result, `${name}${wordMode === 'visual' ? '-visual' : '-text'}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        }
+      } else if (utility === 'pdf-to-xlsx' || utility === 'pdf-to-pptx') {
+        const target = utility === 'pdf-to-xlsx' ? 'xlsx' : 'pptx';
+        if (!consent) throw new Error('Please confirm server processing first.');
+        if (!serverFeatures?.[`pdf_to_${target}`]) throw new Error(`The optional PDF-to-${target.toUpperCase()} converter is not installed.`);
+        const bytes = await exportEditedPdf(editor.session, editor.snapshot);
+        const result = await convertRemotely(new File([bytes], `${name}.pdf`, { type: 'application/pdf' }), target);
+        downloadBlob(result, `${name}.${target}`,
+          target === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
       } else if (utility === 'pdf-to-html') {
-        downloadBlob(await pdfToHtml(editor.session, editor.snapshot), `${name}.html`, 'text/html;charset=utf-8');
+        downloadBlob(await (htmlMode === 'visual' ? pdfToVisualHtml(editor.session, editor.snapshot) : pdfToHtml(editor.session, editor.snapshot)), `${name}${htmlMode === 'visual' ? '-visual' : '-text'}.html`, 'text/html;charset=utf-8');
       } else if (utility === 'pdf-to-json') {
         downloadBlob(await pdfToJson(editor.session, editor.snapshot), `${name}.json`, 'application/json;charset=utf-8');
       } else if (utility === 'pdf-to-markdown') {
@@ -187,8 +220,12 @@ export function UtilityDialog({ utility, onClose }: { utility: Utility; onClose(
         downloadBlob(await pdfToEpub(editor.session, editor.snapshot), `${name}.epub`, 'application/epub+zip');
       } else if (utility === 'pdf-to-jpg' || utility === 'pdf-to-png' || utility === 'pdf-to-webp') {
         const kind = utility === 'pdf-to-jpg' ? 'jpeg' : utility === 'pdf-to-webp' ? 'webp' : 'png';
-        const zip = await documentToImages(editor.session, editor.snapshot, kind);
-        downloadBlob(zip, `${name}-${kind}-pages.zip`, 'application/zip');
+        const numbers = imageRange.trim().toLowerCase() === 'all'
+          ? Array.from({ length: count }, (_, n) => n + 1)
+          : parseRanges(imageRange, count);
+        if (!numbers.length) throw new Error('Enter valid image page numbers, for example 1,3-5 or all.');
+        const output = await documentToImages(editor.session, editor.snapshot, kind, { dpi: imageDpi, quality: imageQuality, pageNumbers: numbers });
+        downloadBlob(output.data, output.zipped ? `${name}-${kind}-pages.zip` : `${name}-page-${numbers[0]}.${kind === 'jpeg' ? 'jpg' : kind}`, output.zipped ? 'application/zip' : `image/${kind}`);
       }
       onClose();
     } catch (error) { editor.notify(`Operation failed: ${readableError(error)}`); }
@@ -198,20 +235,36 @@ export function UtilityDialog({ utility, onClose }: { utility: Utility; onClose(
   const titles: Record<NonNullable<Utility>, string> = {
     merge: 'Merge PDFs', split: 'Extract pages', 'pdf-to-png': 'PDF to PNG',
     'pdf-to-jpg': 'PDF to JPG', 'pdf-to-webp': 'PDF to WebP',
-    'pdf-to-text': 'PDF to text', 'pdf-to-docx': 'PDF to Word (text)',
+    'pdf-to-text': 'PDF to text', 'pdf-to-docx': 'PDF to Word',
     'pdf-to-html': 'PDF to HTML (text)', 'pdf-to-json': 'PDF to JSON',
     'pdf-to-markdown': 'PDF to Markdown', 'pdf-to-epub': 'PDF to EPUB (text)',
+    'pdf-to-xlsx': 'PDF to Excel tables', 'pdf-to-pptx': 'PDF to PowerPoint slides',
   };
-  return <Dialog open={!!utility} onOpenChange={value => { if (!value && !working) onClose(); }}><DialogContent><div className="dialog-heading"><DialogTitle>{utility ? titles[utility] : 'Document tool'}</DialogTitle><DialogDescription>{utility === 'merge' ? 'Append additional PDF files to your current document.' : utility === 'split' ? 'Select which pages to download as a new PDF.' : 'Convert your current document locally in your browser.'}</DialogDescription></div>
+  return <Dialog open={!!utility} onOpenChange={value => { if (!value && !working) onClose(); }}><DialogContent><div className="dialog-heading"><DialogTitle>{utility ? titles[utility] : 'Document tool'}</DialogTitle><DialogDescription>{utility === 'merge' ? 'Append additional PDF files to your current document.' : utility === 'split' ? 'Select which pages to download as a new PDF.' : 'Choose an export method. Browser tools stay local; enhanced conversions explicitly require a server.'}</DialogDescription></div>
     {utility === 'merge' && <div className="dialog-form"><label>Add PDF files<input type="file" multiple accept=".pdf,application/pdf" onChange={event => setFiles(Array.from(event.target.files || []))} /></label><p>{files.length} additional file(s) selected</p></div>}
     {utility === 'split' && <div className="dialog-form"><label>Page numbers or range<input value={pages} onChange={event => setPages(event.target.value)} placeholder="1,3-5" /></label><small>Current document: {count} pages. Separate ranges with commas.</small></div>}
-    {utility === 'pdf-to-png' || utility === 'pdf-to-jpg' || utility === 'pdf-to-webp' ? <p className="operation-note">All pages will be exported as images in a ZIP archive. Rendering large PDFs may use substantial memory.</p> : null}
-    {utility === 'pdf-to-docx' && <p className="operation-note">Exports selectable text to an editable Word document. Original PDF layout, graphics and exact fonts are not preserved.</p>}
-    {utility === 'pdf-to-html' && <p className="operation-note">Creates readable HTML from document text; not an exact copy of the PDF's layout.</p>}
+    {(utility === 'pdf-to-png' || utility === 'pdf-to-jpg' || utility === 'pdf-to-webp') && <div className="dialog-form conversion-settings">
+      <label>Pages to convert<input value={imageRange} onChange={event => setImageRange(event.target.value)} placeholder="all or 1,3-5" /></label>
+      <label>Image resolution<select value={imageDpi} onChange={event => setImageDpi(Number(event.target.value))}><option value={96}>96 DPI · small</option><option value={144}>144 DPI · standard</option><option value={200}>200 DPI · sharp</option><option value={300}>300 DPI · print quality</option></select></label>
+      {utility !== 'pdf-to-png' && <label>Image quality<select value={imageQuality} onChange={event => setImageQuality(Number(event.target.value))}><option value={.75}>Smaller file</option><option value={.9}>Balanced</option><option value={.98}>Maximum</option></select></label>}
+      <p className="operation-note">One page downloads as a single image; multiple pages download as ZIP. Higher DPI uses more memory.</p>
+    </div>}
+    {utility === 'pdf-to-docx' && <div className="dialog-form conversion-settings">
+      <label>Choose your Word output<select value={wordMode} onChange={event => setWordMode(event.target.value as 'editable' | 'visual' | 'enhanced' | 'ocr')}>
+        <option value="editable">Editable text · local</option>
+        <option value="visual">Preserve appearance · local</option>
+        <option value="enhanced">Reconstruct layout · server</option>
+        <option value="ocr">Scanned PDF to editable text · OCR server</option>
+      </select></label>
+      <p className="operation-note">{wordMode === 'editable' ? 'Text is editable, but original PDF graphics, tables and positioning may be lost. Scans need OCR.' : wordMode === 'visual' ? 'Visually resembles the PDF using page images. Text inside the Word document will not be editable.' : wordMode === 'ocr' ? (serverFeatures?.pdf_to_ocr_docx ? 'OCR is available for English scans. Page layout and fonts are not preserved.' : 'OCR needs the optional server with Tesseract installed.') : serverFeatures?.pdf_to_docx ? 'Enhanced conversion is available; complex pages and fonts may still differ.' : 'Enhanced Word conversion requires the optional server and pdf2docx engine.'}</p>
+    </div>}
+    {(utility === 'pdf-to-xlsx' || utility === 'pdf-to-pptx') && <p className="operation-note">{utility === 'pdf-to-xlsx' ? 'Extract detected tables into editable Excel cells (including many borderless tables). Scans and formulas may not convert.' : 'Turn PDF pages into slides that look like the original. Slide contents are images, not editable PowerPoint text and shapes.'} {serverFeatures?.[utility === 'pdf-to-xlsx' ? 'pdf_to_xlsx' : 'pdf_to_pptx'] ? 'Server converter is available.' : 'Requires a configured optional conversion server.'}</p>}
+    {(utility === 'pdf-to-xlsx' || utility === 'pdf-to-pptx' || (utility === 'pdf-to-docx' && (wordMode === 'enhanced' || wordMode === 'ocr'))) && <label className="conversion-consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /> I agree to send this PDF to the configured conversion server for processing.</label>}
+    {utility === 'pdf-to-html' && <div className="dialog-form conversion-settings"><label>HTML output type<select value={htmlMode} onChange={event => setHtmlMode(event.target.value as 'visual' | 'text')}><option value="visual">Preserve visual pages · embedded images</option><option value="text">Readable, editable text layout</option></select></label><p className="operation-note">{htmlMode === 'visual' ? 'Appearance is preserved as images in a standalone HTML file. Extracted text appears in expandable panels; the visual content cannot be edited as HTML text.' : 'Text-only HTML is easy to edit but does not preserve the original graphics and layout.'}</p></div>}
     {utility === 'pdf-to-epub' && <p className="operation-note">Creates a reflowable ebook from selectable text. PDF images and original page layout are not preserved.</p>}
     {utility === 'pdf-to-markdown' && <p className="operation-note">Exports text as Markdown with page headings; it cannot reconstruct original headings or tables.</p>}
     {utility === 'pdf-to-json' && <p className="operation-note">Exports structured text grouped by page and line.</p>}
     {utility === 'pdf-to-text' && <p className="operation-note">Selectable text can be extracted; scanned-image PDFs require OCR, which is not included.</p>}
-    <div className="dialog-footer"><Button variant="outline" onClick={onClose} disabled={working}>Cancel</Button><Button disabled={working} onClick={run}>{working ? 'Processing…' : utility === 'merge' ? 'Merge files' : 'Download result'} <ArrowRight size={15} /></Button></div>
+    <div className="dialog-footer"><Button variant="outline" onClick={onClose} disabled={working}>Cancel</Button><Button disabled={working || ((utility === 'pdf-to-xlsx' || utility === 'pdf-to-pptx' || (utility === 'pdf-to-docx' && (wordMode === 'enhanced' || wordMode === 'ocr'))) && !consent)} onClick={run}>{working ? 'Processing…' : utility === 'merge' ? 'Merge files' : 'Download result'} <ArrowRight size={15} /></Button></div>
   </DialogContent></Dialog>;
 }

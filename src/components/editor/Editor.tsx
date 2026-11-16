@@ -71,7 +71,7 @@ export function Editor({ initialAction, isDark, onToggleTheme, onClose }: Editor
     else if (initialAction === 'sign') setSignatureOpen(true);
     else if (initialAction === 'forms') setFormsOpen(true);
     else if (initialAction === 'annotate') editor.setTool('highlight');
-    else if (['split', 'pdf-to-png', 'pdf-to-jpg', 'pdf-to-webp', 'pdf-to-text', 'pdf-to-docx', 'pdf-to-html', 'pdf-to-json', 'pdf-to-markdown', 'pdf-to-epub'].includes(initialAction)) {
+    else if (['split', 'pdf-to-png', 'pdf-to-jpg', 'pdf-to-webp', 'pdf-to-text', 'pdf-to-docx', 'pdf-to-html', 'pdf-to-json', 'pdf-to-markdown', 'pdf-to-epub', 'pdf-to-xlsx', 'pdf-to-pptx'].includes(initialAction)) {
       setUtility(initialAction as Utility);
     }
     // Only on initial editor opening; the same action should not repeat after every rerender.
